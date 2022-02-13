@@ -13,7 +13,7 @@ class StarCraftEnv(gym.Env):
         self.server_port = int(server_port)
         self.client.connect(self.server_ip, self.server_port)
         self.state = self.client.init(micro_battles=True)   #  setup state
-        print(self.state.player_info)
+#        print(self.state.player_info)
         self.speed = speed
         self.frame_skip = frame_skip
         self.self_play = self_play
