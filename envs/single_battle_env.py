@@ -7,6 +7,7 @@ from gym import spaces
 import TorchCraft.starcraft_gym.proto as proto
 import TorchCraft.starcraft_gym.gym_utils as utils
 
+import torchcraft as tc
 import torchcraft.Constants as tcc
 import TorchCraft.starcraft_gym.envs.starcraft_env as sc
 
@@ -38,17 +39,19 @@ class SingleBattleEnv(sc.StarCraftEnv):
         if self.state.units == {}:  # 아무 유닛도 아직 없을때 처리
             return cmds
         # 각각의 유닛이 무엇인지 확인하는 부분
-        # for ii in self.state.units[0]:
-        #     print(ii.type)
+        for ii in self.state.units[0]:
+            print(ii.groundATK)
 #        print(issubclass(int, self.state))
 
-        object_methods = [method_name for method_name in dir(self.state.frame.resources[0].ore)]  # state하위 모든 메쏘드
+        # object_methods = [method_name for method_name in dir(self.state.units[0][0].id)]  # state하위 모든 메쏘드
         # for i in object_methods:
         #     a = [c for c in dir(i)]
         #     print(a)
-        print(object_methods)
+        # print(object_methods)
 
-        print('mineral:',self.state.frame.resources[0].ore)
+        # print('mineral:',self.state.units[0][0].id)
+        # if self.state.frame.resources[0].ore >= 100:
+
 
         for a in self.state.units[0]:
             if a.type == 7 and a.idle == True:
@@ -57,26 +60,32 @@ class SingleBattleEnv(sc.StarCraftEnv):
                 print(a.idle)
                 myself_id = a.id
                 myself = a
+                break
 
         for b in self.state.units[1]:
             enemy_id = b.id
             enemy = b
+        print(action)
 
         if action[0] > 0:
-            if myself is None or enemy is None:
+            if myself is None:
                 return cmds
-            cmds.append([
-                tcc.command_unit_protected, myself_id,
-                tcc.unitcommandtypes.Attack_Unit, enemy_id])
+            for i in range(0,800,20):
+                for j in range(0,800,20):
+                    cmds.append([
+                        tcc.command_unit_protected, myself_id,
+                        tcc.unitcommandtypes.Build, -1, myself.x+30-i, myself.y+30-j, tcc.unittypes.Terran_Supply_Depot])
         else:
-            if myself is None or enemy is None:
+            if myself is None:
                 return cmds
-            degree = action[1] * 180  # 180의 의미??
-            distance = (action[2] + 1) * DISTANCE_FACTOR # DISTANCE_FACTOR의 의미?
-            x2, y2 = utils.get_position(degree, distance, myself.x, -myself.y)  # myself.x -> myself.position[1]
-            cmds.append([
-                tcc.command_unit_protected, myself_id,
-                tcc.unitcommandtypes.Move, -1, int(x2), int(y2)])  # numpy.float64형식을 받을수없다고해서 int로 바꿈
+
+            print( myself.x, myself.y)
+            print(myself.type)
+            for i in range(0,800,20):
+                for j in range(0,800,20):
+                    cmds.append([
+                        tcc.command_unit_protected, myself_id,
+                        tcc.unitcommandtypes.Build, -1, myself.x+30-i, myself.y+30-j, tcc.unittypes.Terran_Supply_Depot])  # numpy.float64형식을 받을수없다고해서 int로 바꿈
 
         return cmds
 

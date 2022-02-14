@@ -29,7 +29,6 @@ class StarCraftEnv(gym.Env):
         self.state = None
         self.obs = None
         self.obs_pre = None
-        print('6')
     def __del__(self):
         self.client.close()
 
@@ -48,7 +47,6 @@ class StarCraftEnv(gym.Env):
         return self.obs, reward, done, info
 
     def _reset(self):
-        print('7')
 
         utils.print_progress(self.episodes, self.episode_wins)
 #        print(not self.self_play, self.episode_steps == self.max_episode_steps)
