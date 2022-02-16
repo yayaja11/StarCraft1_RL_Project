@@ -12,19 +12,21 @@ import torchcraft.Constants as tcc
 import TorchCraft.starcraft_gym.envs.starcraft_env as sc
 
 DISTANCE_FACTOR = 16
+STATE_BUNKER = [(100,39), (112,39),(124,39),(136,39),(148,39),(100,55),(112,55), (124,55),(136,55),(88,63)]
 
 class SingleBattleEnv(sc.StarCraftEnv):
     def __init__(self, server_ip, server_port, speed=0, frame_skip=0, self_play = False, max_episode_steps = 2000):
         super(SingleBattleEnv, self).__init__(server_ip, server_port, speed, frame_skip, self_play, max_episode_steps)
 
     def _action_space(self):
-        action_low = [-1.0, -1.0, -1.0]
-        action_high = [1.0, 1.0, 1.0]
-        return spaces.Box(np.array(action_low), np.array(action_high))
+        action_low = [0]
+        action_high = [9]
+        return spaces.Discrete(9)
 
     def _observation_space(self):
-        obs_low  = [  0.0,   0.0, 0.0, 0.0, -1.0,  0.0,  0.0,   0.0,  0.0, 0.0]
-        obs_high = [100.0, 100.0, 1.0, 1.0,  1.0, 50.0, 100.0, 100.0, 1.0, 1.0]
+        obs_low  = [1,2,3,4,5,6,7,8,9,0]
+        obs_high  = [1,2,3,4,5,6,7,8,9,0]
+        print(spaces.Box(np.array(obs_low), np.array(obs_high)))
         return spaces.Box(np.array(obs_low), np.array(obs_high))
 
     def _make_commands(self, action):
@@ -38,9 +40,9 @@ class SingleBattleEnv(sc.StarCraftEnv):
         enemy = None
         if self.state.units == {}:  # 아무 유닛도 아직 없을때 처리
             return cmds
+        # print('buildable?:',self.state.buildable_data)
         # 각각의 유닛이 무엇인지 확인하는 부분
-        for ii in self.state.units[0]:
-            print(ii.groundATK)
+        # for ii in self.state.units[0]:
 #        print(issubclass(int, self.state))
 
         # object_methods = [method_name for method_name in dir(self.state.units[0][0].id)]  # state하위 모든 메쏘드
@@ -65,27 +67,29 @@ class SingleBattleEnv(sc.StarCraftEnv):
         for b in self.state.units[1]:
             enemy_id = b.id
             enemy = b
-        print(action)
 
-        if action[0] > 0:
-            if myself is None:
-                return cmds
-            for i in range(0,800,20):
-                for j in range(0,800,20):
-                    cmds.append([
-                        tcc.command_unit_protected, myself_id,
-                        tcc.unitcommandtypes.Build, -1, myself.x+30-i, myself.y+30-j, tcc.unittypes.Terran_Supply_Depot])
-        else:
-            if myself is None:
-                return cmds
+        # if action[0] > 0:
+        if myself is None:
+            return cmds
 
-            print( myself.x, myself.y)
-            print(myself.type)
-            for i in range(0,800,20):
-                for j in range(0,800,20):
-                    cmds.append([
-                        tcc.command_unit_protected, myself_id,
-                        tcc.unitcommandtypes.Build, -1, myself.x+30-i, myself.y+30-j, tcc.unittypes.Terran_Supply_Depot])  # numpy.float64형식을 받을수없다고해서 int로 바꿈
+        cmds.append([
+            # tcc.command_unit_protected, myself_id,
+            # tcc.unitcommandtypes.Attack_Move, -1, myself.x -20, myself.y -20
+            # ])
+            tcc.command_unit_protected, myself_id,
+            tcc.unitcommandtypes.Build, -1, STATE_BUNKER[action][0], STATE_BUNKER[action][1], tcc.unittypes.Terran_Supply_Depot])
+
+
+        # else:
+        #     if myself is None:
+        #         return cmds
+
+            # print( myself.x, myself.y)
+            # print(myself.type)
+
+            # cmds.append([
+            #     tcc.command_unit_protected, myself_id,
+            #     tcc.unitcommandtypes.Build, -1, myself.x+30-i, myself.y+30-j, tcc.unittypes.Terran_Supply_Depot])  # numpy.float64형식을 받을수없다고해서 int로 바꿈
 
         return cmds
 
@@ -94,9 +98,8 @@ class SingleBattleEnv(sc.StarCraftEnv):
         enemy = None
 
         obs = np.zeros(self.observation_space.shape)
-
+        print(obs)
         if self.state.units == {}:  # 아무 유닛도 아직 없을때 처리
-            obs[9] = 1.0
             return obs
         myunits = self.state.units[0]
         enemy_units = self.state.units[1]
@@ -110,19 +113,19 @@ class SingleBattleEnv(sc.StarCraftEnv):
             enemy = b
 
 
-        if myself is not None and enemy is not None:  # 현재 상태??
-            obs[0] = myself.health
-            obs[1] = myself.groundCD
-            obs[2] = myself.groundRange / DISTANCE_FACTOR -1
-            obs[3] = 0.0
-            obs[4] = utils.get_degree(myself.x, -myself.y, enemy.x, -enemy.y) / 180
-            obs[5] = utils.get_distance(myself.x, -myself.y, enemy.x, -enemy.y) / DISTANCE_FACTOR - 1
-            obs[6] = enemy.health
-            obs[7] = enemy.groundCD
-            obs[8] = enemy.groundRange / DISTANCE_FACTOR -1
-            obs[9] = 1.0
-        else:
-            obs[9] = 1.0
+        if myself is not None:  # 현재 상태??
+            obs[0] = 1
+            obs[1] = 1
+            obs[2] = 1
+            obs[3] = 1
+            obs[4] = 1
+            obs[5] = 1
+            obs[6] = 1
+            obs[7] = 1
+            obs[8] = 1
+            obs[9] = 1
+            print(obs)
+
 
         return obs
 

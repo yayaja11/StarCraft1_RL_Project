@@ -34,7 +34,7 @@ class StarCraftEnv(gym.Env):
 
     def _step(self, action):
         self.episode_steps += 1
-
+        print('action:', action)
         self.client.send(self._make_commands(action))
         self.state = self.client.recv()   # torchcraft_py에선 receive
         self.obs = self._make_observation()
