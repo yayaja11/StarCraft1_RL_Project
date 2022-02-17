@@ -12,21 +12,31 @@ import torchcraft.Constants as tcc
 import TorchCraft.starcraft_gym.envs.starcraft_env as sc
 
 DISTANCE_FACTOR = 16
-STATE_BUNKER = [(100,39), (112,39),(124,39),(136,39),(148,39),(100,55),(112,55), (124,55),(136,55),(88,63)]
+# (x축, y축, z) z: 0: 일반벙커 1, 영웅벙커 2, 유니크 벙커 3
+STATE_BUNKER = [(100,39,0), (112,39),(124,39),(136,39),(148,39)
+                                                               ,(156, 47)
+                ,(100,55),(112,55),(124,55),(136,55),         (156, 55)
+        ,(88,63),(100,63),(112,63),(124,63),(136,63),         (156, 63),(168,63)
+,(76,71)
+,(76,79),       (100, 79),(112,79),(124,79),(136,79),         (156, 79),(168,78)
+,(76,87),       (100, 87),(112,87),(124,87),(136,87),         (156, 87),(168,87)
+,(76,95),       (100, 95),(112,95),(124,95),(136,95),         (156, 95),(168,95)
+,(76,103),      (100, 103),(112,103),(124,103),(136,103),     (156, 103),(168,103)
+,(76,111),                                                    (156, 111),(168,111)
+    ,(84,119),(96,119),(108,119),(120,119),(132,119),(144,119),(156,111)
+        ]
 
 class SingleBattleEnv(sc.StarCraftEnv):
     def __init__(self, server_ip, server_port, speed=0, frame_skip=0, self_play = False, max_episode_steps = 2000):
         super(SingleBattleEnv, self).__init__(server_ip, server_port, speed, frame_skip, self_play, max_episode_steps)
 
     def _action_space(self):
-        action_low = [0]
-        action_high = [9]
-        return spaces.Discrete(9)
+        self.number_of_state = len(STATE_BUNKER)  # + 영웅 + 유니크 + 업그레이드
+        return spaces.Discrete(self.number_of_state)
 
     def _observation_space(self):
-        obs_low  = [1,2,3,4,5,6,7,8,9,0]
-        obs_high  = [1,2,3,4,5,6,7,8,9,0]
-        print(spaces.Box(np.array(obs_low), np.array(obs_high)))
+        obs_low  = [1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8]
+        obs_high  = [1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8]
         return spaces.Box(np.array(obs_low), np.array(obs_high))
 
     def _make_commands(self, action):
@@ -98,7 +108,6 @@ class SingleBattleEnv(sc.StarCraftEnv):
         enemy = None
 
         obs = np.zeros(self.observation_space.shape)
-        print(obs)
         if self.state.units == {}:  # 아무 유닛도 아직 없을때 처리
             return obs
         myunits = self.state.units[0]
@@ -114,17 +123,9 @@ class SingleBattleEnv(sc.StarCraftEnv):
 
 
         if myself is not None:  # 현재 상태??
-            obs[0] = 1
-            obs[1] = 1
-            obs[2] = 1
-            obs[3] = 1
-            obs[4] = 1
-            obs[5] = 1
-            obs[6] = 1
-            obs[7] = 1
-            obs[8] = 1
-            obs[9] = 1
-            print(obs)
+
+            for i in range(self.number_of_state):
+                obs[i] = 1
 
 
         return obs
