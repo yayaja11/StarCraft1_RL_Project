@@ -12,26 +12,55 @@ import torchcraft.Constants as tcc
 import TorchCraft.starcraft_gym.envs.starcraft_env as sc
 
 DISTANCE_FACTOR = 16
-# (x축, y축, z) z: 0: 일반벙커 1, 영웅벙커 2, 유니크 벙커 3
-STATE_BUNKER = [(100,39,0), (112,39),(124,39),(136,39),(148,39)
-                                                               ,(156, 47)
-                ,(100,55),(112,55),(124,55),(136,55),         (156, 55)
-        ,(88,63),(100,63),(112,63),(124,63),(136,63),         (156, 63),(168,63)
-,(76,71)
-,(76,79),       (100, 79),(112,79),(124,79),(136,79),         (156, 79),(168,78)
-,(76,87),       (100, 87),(112,87),(124,87),(136,87),         (156, 87),(168,87)
-,(76,95),       (100, 95),(112,95),(124,95),(136,95),         (156, 95),(168,95)
-,(76,103),      (100, 103),(112,103),(124,103),(136,103),     (156, 103),(168,103)
-,(76,111),                                                    (156, 111),(168,111)
-    ,(84,119),(96,119),(108,119),(120,119),(132,119),(144,119),(156,111)
-        ]
+# (x축, y축, z) z: 0: 일반벙커, 1: 영웅벙커, 2: 유니크 벙커 3: upgrade
+STATE_BUNKER = [(100,39,0), (112,39,0),(124,39,0),(136,39,0),(148,39,0)
+                                                               ,(156, 47,0)
+                ,(100,55,0),(112,55,0),(124,55,0),(136,55,0),         (156, 55,0)
+        ,(88,63,0),(100,63,0),(112,63,0),(124,63,0),(136,63,0),         (156, 63,0),(168,63,0)
+,(76,71,0)
+,(76,79,0),       (100, 79,0),(112,79,0),(124,79,0),(136,79,0),         (156, 79,0),(168,78,0)
+,(76,87,0),       (100, 87,0),(112,87,0),(124,87,0),(136,87,0),         (156, 87,0),(168,87,0)
+,(76,95,0),       (100, 95,0),(112,95,0),(124,95,0),(136,95,0),         (156, 95,0),(168,95,0)
+,(76,103,0),      (100, 103,0),(112,103,0),(124,103,0),(136,103,0),     (156, 103,0),(168,103,0)
+,(76,111,0),                                                    (156, 111,0),(168,111,0)
+    ,(84,119,0),(96,119,0),(108,119,0),(120,119,0),(132,119,0),(144,119,0),(156,111,0)
+                ,
+                (100,39,1), (112,39,1),(124,39,1),(136,39,1),(148,39,1)
+                                                               ,(156, 47,1)
+                ,(100,55,1),(112,55,1),(124,55,1),(136,55,1),         (156, 55,1)
+        ,(88,63,1),(100,63,1),(112,63,1),(124,63,1),(136,63,1),         (156, 63,1),(168,63,1)
+,(76,71,1)
+,(76,79,1),       (100, 79,1),(112,79,1),(124,79,1),(136,79,1),         (156, 79,1),(168,78,1)
+,(76,87,1),       (100, 87,1),(112,87,1),(124,87,1),(136,87,1),         (156, 87,1),(168,87,1)
+,(76,95,1),       (100, 95,1),(112,95,1),(124,95,1),(136,95,1),         (156, 95,1),(168,95,1)
+,(76,103,1),      (100, 103,1),(112,103,1),(124,103,1),(136,103,1),     (156, 103,1),(168,103,1)
+,(76,111,1),                                                    (156, 111,1),(168,111,1)
+    ,(84,119,1),(96,119,1),(108,119,1),(120,119,1),(132,119,1),(144,119,1),(156,111,1)
+                ,
+                (100,39,2), (112,39,2),(124,39,2),(136,39,2),(148,39,2)
+                                                               ,(156, 47,2)
+                ,(100,55,2),(112,55,2),(124,55,2),(136,55,2),         (156, 55,2)
+        ,(88,63,2),(100,63,2),(112,63,2),(124,63,2),(136,63,2),         (156, 63,2),(168,63,2)
+,(76,71,2)
+,(76,79,2),       (100, 79,2),(112,79,2),(124,79,2),(136,79,2),         (156, 79,2),(168,78,2)
+,(76,87,2),       (100, 87,2),(112,87,2),(124,87,2),(136,87,2),         (156, 87,2),(168,87,2)
+,(76,95,2),       (100, 95,2),(112,95,2),(124,95,2),(136,95,2),         (156, 95,2),(168,95,2)
+,(76,103,2),      (100, 103,2),(112,103,2),(124,103,2),(136,103,2),     (156, 103,2),(168,103,2)
+,(76,111,2),                                                    (156, 111,2),(168,111,2)
+    ,(84,119,2),(96,119,2),(108,119,2),(120,119,2),(132,119,2),(144,119,2),(156,111,2)
+
+                ,(0,0,3) ]
 
 class SingleBattleEnv(sc.StarCraftEnv):
-    def __init__(self, server_ip, server_port, speed=0, frame_skip=0, self_play = False, max_episode_steps = 2000):
+    def __init__(self, server_ip, server_port, speed=0, frame_skip=10, self_play = False, max_episode_steps = 2000):
         super(SingleBattleEnv, self).__init__(server_ip, server_port, speed, frame_skip, self_play, max_episode_steps)
+
 
     def _action_space(self):
         self.number_of_state = len(STATE_BUNKER)  # + 영웅 + 유니크 + 업그레이드
+
+
+
         return spaces.Discrete(self.number_of_state)
 
     def _observation_space(self):
@@ -44,10 +73,8 @@ class SingleBattleEnv(sc.StarCraftEnv):
         if self.state is None or action is None:
             return cmds
 
-        myself_id = None
-        myself = None
-        enemy_id = None
-        enemy = None
+        scv = None
+
         if self.state.units == {}:  # 아무 유닛도 아직 없을때 처리
             return cmds
         # print('buildable?:',self.state.buildable_data)
@@ -67,28 +94,45 @@ class SingleBattleEnv(sc.StarCraftEnv):
 
         for a in self.state.units[0]:
             if a.type == 7 and a.idle == True:
-                print('SCV is idle')
+                scv_id = a.id
+                scv = a
 
-                print(a.idle)
-                myself_id = a.id
-                myself = a
-                break
+            if a.type == 122:
+                engineeringbay_id = a.id
+                engineeringbay = a
 
-        for b in self.state.units[1]:
-            enemy_id = b.id
-            enemy = b
+            if a.type == 35:
+                larva_id = a.id
+                larva = a
+
+            if a.type == 38:
+                hydra_id = a.id
+                hydra = a
+
+
+
 
         # if action[0] > 0:
-        if myself is None:
+        if scv is None:
             return cmds
 
-        cmds.append([
-            # tcc.command_unit_protected, myself_id,
-            # tcc.unitcommandtypes.Attack_Move, -1, myself.x -20, myself.y -20
-            # ])
-            tcc.command_unit_protected, myself_id,
-            tcc.unitcommandtypes.Build, -1, STATE_BUNKER[action][0], STATE_BUNKER[action][1], tcc.unittypes.Terran_Supply_Depot])
+        if STATE_BUNKER[action][2] == 0:
+            cmds.append([
+                tcc.command_unit_protected, scv_id,
+                tcc.unitcommandtypes.Build, -1, STATE_BUNKER[action][0], STATE_BUNKER[action][1], tcc.unittypes.Terran_Supply_Depot])
 
+        if STATE_BUNKER[action][2] == 1:
+            cmds.append([
+                tcc.command_unit_protected, scv_id,
+                tcc.unitcommandtypes.Build, -1, STATE_BUNKER[action][0], STATE_BUNKER[action][1], tcc.unittypes.Terran_Supply_Depot])
+
+        if STATE_BUNKER[action][2] == 2:
+            cmds.append([
+                tcc.command_unit_protected, scv_id,
+                tcc.unitcommandtypes.Build, -1, STATE_BUNKER[action][0], STATE_BUNKER[action][1], tcc.unittypes.Terran_Supply_Depot])
+
+        if STATE_BUNKER[action][2] == 3:
+            pass
 
         # else:
         #     if myself is None:
@@ -105,27 +149,27 @@ class SingleBattleEnv(sc.StarCraftEnv):
 
     def _make_observation(self):
         myself = None
-        enemy = None
-
         obs = np.zeros(self.observation_space.shape)
+        lifes = 0
+        lucks = 0
         if self.state.units == {}:  # 아무 유닛도 아직 없을때 처리
             return obs
-        myunits = self.state.units[0]
-        enemy_units = self.state.units[1]
 
-        for a in myunits:
-            myself = a
+        for a in self.state.units[0]:
+            print(a.x, a.y)
+            if a.type == 13:
+                lifes += 1
 
-#        for uid, ut in self.state.units[0]:  # 원래 units_myself.items
-#            myself = ut
-        for b in enemy_units:  # 원래 units_enemy.items():
-            enemy = b
+            if a.type == 218:
+                lucks += 1
+
+        print(self.state.battle_frame_count)
+        obs[0] = lifes  # 라이프
+        obs[1] = lucks  # 럭
+        obs[2] = self.state.frame.resources[0].ore  # 미네랄
+        obs[3] = self.state.frame.resources[0].gas # 가스
 
 
-        if myself is not None:  # 현재 상태??
-
-            for i in range(self.number_of_state):
-                obs[i] = 1
 
 
         return obs
@@ -135,20 +179,18 @@ class SingleBattleEnv(sc.StarCraftEnv):
 
     def _compute_reward(self):  #보상 계산
         reward = 0
-        if self.obs[5] + 1 > 1.5:
-            reward = -1
 
-        if self.obs_pre[6] > self.obs[6]:
-            reward = 15
         if self.obs_pre[0] > self.obs[0]:
             reward = -10
+        if self.obs_pre[0] == self.obs[0]:
+            reward = 1
+        if self.obs_pre[1] < self.obs[1]:
+            reward = 1
         if self._check_done() and not bool(self.state.battle_won):
             reward = -500
         if self._check_done() and bool(self.state.battle_won):
             reward = 1000
             self.episode_wins += 1
-        if self.episode_steps == self.max_episode_steps:
-            reward = -500
 
         return reward
 
