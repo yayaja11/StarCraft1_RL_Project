@@ -13,7 +13,7 @@ class StarCraftEnv(gym.Env):
         self.server_port = int(server_port)
         self.client.connect(self.server_ip, self.server_port)
         self.state = self.client.init(micro_battles=True)   #  setup state
-#        print(self.state.player_info)
+        print(self.state.player_info)
         self.speed = speed
         self.frame_skip = frame_skip
         self.self_play = self_play
@@ -35,11 +35,12 @@ class StarCraftEnv(gym.Env):
 
     def _step(self, action):
         self.episode_steps += 1
-        print('action:', action)
+        #print('action:', action)
 
         self.client.send(self._make_commands(action))
         self.state = self.client.recv()   # torchcraft_py에선 receive
         self.obs = self._make_observation()
+
         reward = self._compute_reward()
         done = self._check_done()
         info = self._get_info()
@@ -80,6 +81,9 @@ class StarCraftEnv(gym.Env):
 
         self.obs = self._make_observation()
         self.obs_pre = self.obs
+        self.init_timer = 1  # elasped time 초기화
+        self.over28stage = 0
+
         return self.obs
 
 

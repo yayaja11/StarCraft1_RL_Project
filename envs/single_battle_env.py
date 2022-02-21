@@ -52,11 +52,16 @@ STATE_BUNKER = [(100,39,0), (112,39,0),(124,39,0),(136,39,0),(148,39,0)
                 ,(0,0,3) ]
 
 class SingleBattleEnv(sc.StarCraftEnv):
-    def __init__(self, server_ip, server_port, speed=0, frame_skip=10, self_play = False, max_episode_steps = 2000):
+    def __init__(self, server_ip, server_port, speed=10, frame_skip=0, self_play = False, max_episode_steps = 2000):
+        # speed 60= 1000프레임을 60초동안. 1=1000프레임을 1초동안
+        self.speed = speed
+        self.init_timer = 1
+        self.over28stage = 0
         super(SingleBattleEnv, self).__init__(server_ip, server_port, speed, frame_skip, self_play, max_episode_steps)
 
 
     def _action_space(self):
+
         self.number_of_state = len(STATE_BUNKER)  # + 영웅 + 유니크 + 업그레이드
 
 
@@ -82,11 +87,12 @@ class SingleBattleEnv(sc.StarCraftEnv):
         # for ii in self.state.units[0]:
 #        print(issubclass(int, self.state))
 
-        # object_methods = [method_name for method_name in dir(self.state.units[0][0].id)]  # state하위 모든 메쏘드
+        # object_methods = [method_name for method_name in dir(self.state.frame.filter(10,10))]  # state하위 모든 메쏘드
         # for i in object_methods:
         #     a = [c for c in dir(i)]
-        #     print(a)
-        # print(object_methods)
+        #     print('1', a)
+        # print('1',type(self.state.frame.filter(10,10)))
+        # print('2',self.state.frame.filter(10,10))
 
         # print('mineral:',self.state.units[0][0].id)
         # if self.state.frame.resources[0].ore >= 100:
@@ -156,14 +162,29 @@ class SingleBattleEnv(sc.StarCraftEnv):
             return obs
 
         for a in self.state.units[0]:
-            print(a.x, a.y)
+            # print(a.x, a.y)
             if a.type == 13:
                 lifes += 1
 
             if a.type == 218:
                 lucks += 1
+        f = open('C:\starlog\log.txt', 'a')
+        f.write(str(self.state.frame_from_bwapi))
+        f.write('\n')
 
-        print(self.state.battle_frame_count)
+        self.countdown = 1350 - (self.state.frame_from_bwapi)
+
+        print(self.countdown)
+        if self.countdown == 0:
+            f.write('new_stage\n')
+        if self.state.units[1][-1].x == 76:
+            print('appear')
+            f.write('appear\n')
+
+        f.close()
+
+        print('frame_from_bwapi:',self.state.frame_from_bwapi)
+
         obs[0] = lifes  # 라이프
         obs[1] = lucks  # 럭
         obs[2] = self.state.frame.resources[0].ore  # 미네랄
