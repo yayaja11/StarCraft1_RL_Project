@@ -81,8 +81,16 @@ class StarCraftEnv(gym.Env):
 
         self.obs = self._make_observation()
         self.obs_pre = self.obs
+        
+        # reset할때 초기화할 값들
         self.countdown = 804
         self.stage = 0
+        self.over28stage = 0
+        self.hero_bunker = 0
+        self.unique_bunker = 0
+        self.action_save = 0
+        self.curr_upgrade = 1
+        self.miss_action = 0
 
         return self.obs
 
