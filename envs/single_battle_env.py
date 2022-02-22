@@ -55,8 +55,10 @@ class SingleBattleEnv(sc.StarCraftEnv):
     def __init__(self, server_ip, server_port, speed=10, frame_skip=0, self_play = False, max_episode_steps = 2000):
         # speed 60= 1000프레임을 60초동안. 1=1000프레임을 1초동안
         self.speed = speed
-        self.init_timer = 1
+        self.countdown = 806
+        self.stage = 0
         self.over28stage = 0
+
         super(SingleBattleEnv, self).__init__(server_ip, server_port, speed, frame_skip, self_play, max_episode_steps)
 
 
@@ -79,6 +81,9 @@ class SingleBattleEnv(sc.StarCraftEnv):
             return cmds
 
         scv = None
+        engineeringbay = None
+        hydra = None
+        larva = None
 
         if self.state.units == {}:  # 아무 유닛도 아직 없을때 처리
             return cmds
@@ -87,12 +92,12 @@ class SingleBattleEnv(sc.StarCraftEnv):
         # for ii in self.state.units[0]:
 #        print(issubclass(int, self.state))
 
-        # object_methods = [method_name for method_name in dir(self.state.frame.filter(10,10))]  # state하위 모든 메쏘드
+        # object_methods = [method_name for method_name in dir(self.state.frame.resources[0].upgrades_level)]  # state하위 모든 메쏘드
         # for i in object_methods:
         #     a = [c for c in dir(i)]
         #     print('1', a)
-        # print('1',type(self.state.frame.filter(10,10)))
-        # print('2',self.state.frame.filter(10,10))
+        # print('1',type(self.state.frame.resources[0].upgrades_level))
+        # print('2',self.state.frame.resources[0].upgrades_level)
 
         # print('mineral:',self.state.units[0][0].id)
         # if self.state.frame.resources[0].ore >= 100:
@@ -122,23 +127,42 @@ class SingleBattleEnv(sc.StarCraftEnv):
         if scv is None:
             return cmds
 
-        if STATE_BUNKER[action][2] == 0:
+        if engineeringbay is None:
+            return cmds
+
+        if hydra is None and self.state.frame_from_bwapi >= 50:
+            return cmds
+
+        if larva is None and self.stage >= 10:
+            return cmds
+
+        print('action:', STATE_BUNKER[action])
+
+        # if STATE_BUNKER[action][2] == 1 or STATE_BUNKER[action][2] == 2 or STATE_BUNKER[action][2] == 0:
+        if STATE_BUNKER[action][2] == 0 :  # 일반 벙커
             cmds.append([
                 tcc.command_unit_protected, scv_id,
                 tcc.unitcommandtypes.Build, -1, STATE_BUNKER[action][0], STATE_BUNKER[action][1], tcc.unittypes.Terran_Supply_Depot])
 
-        if STATE_BUNKER[action][2] == 1:
+        elif STATE_BUNKER[action][2] == 1 and self.state.frame_from_bwapi >= 50:  # 영웅 벙커
             cmds.append([
+                tcc.command_unit_protected, hydra_id,
+                tcc.unitcommandtypes.Morph, -1, -1, -1, tcc.unittypes.Zerg_Lurker,
                 tcc.command_unit_protected, scv_id,
                 tcc.unitcommandtypes.Build, -1, STATE_BUNKER[action][0], STATE_BUNKER[action][1], tcc.unittypes.Terran_Supply_Depot])
 
-        if STATE_BUNKER[action][2] == 2:
+        elif STATE_BUNKER[action][2] == 2 and self.stage >= 10:  # 유니크 벙커
             cmds.append([
+                tcc.command_unit_protected, larva_id,
+                tcc.unitcommandtypes.Morph, -1, -1, -1, tcc.unittypes.Zerg_Drone,
                 tcc.command_unit_protected, scv_id,
                 tcc.unitcommandtypes.Build, -1, STATE_BUNKER[action][0], STATE_BUNKER[action][1], tcc.unittypes.Terran_Supply_Depot])
 
-        if STATE_BUNKER[action][2] == 3:
-            pass
+        elif STATE_BUNKER[action][2] == 3:
+            cmds.append([
+                tcc.command_unit_protected, engineeringbay_id,
+                tcc.unitcommandtypes.Upgrade, -1, -1, -1, tcc.upgradetypes.Terran_Infantry_Weapons
+            ])
 
         # else:
         #     if myself is None:
@@ -168,29 +192,33 @@ class SingleBattleEnv(sc.StarCraftEnv):
 
             if a.type == 218:
                 lucks += 1
-        f = open('C:\starlog\log.txt', 'a')
-        f.write(str(self.state.frame_from_bwapi))
-        f.write('\n')
-
-        self.countdown = 1350 - (self.state.frame_from_bwapi)
-
-        print(self.countdown)
+        # f = open('C:\starlog\log.txt', 'a')
+        self.countdown -= 1
         if self.countdown == 0:
-            f.write('new_stage\n')
-        if self.state.units[1][-1].x == 76:
-            print('appear')
-            f.write('appear\n')
+            self.countdown += 1344
+            self.stage += 1
+            # f.write(str(self.state.frame_from_bwapi))
+            # f.write('\n')
+            # print('new_stage')
+            # f.write('new_stage\n')
 
-        f.close()
+        # if self.state.units[1][-1].x == 76:
+        #     f.write(str(self.state.frame_from_bwapi))
+        #     f.write('\n')
+        #     print('appear')
+        #     f.write('appear\n')
+        #
+        # f.close()
 
-        print('frame_from_bwapi:',self.state.frame_from_bwapi)
+        print('frame_from_bwapi:', self.state.frame_from_bwapi)
+        print('countdown timer:', int((self.countdown/14) % int(1344/14)))
 
         obs[0] = lifes  # 라이프
         obs[1] = lucks  # 럭
         obs[2] = self.state.frame.resources[0].ore  # 미네랄
         obs[3] = self.state.frame.resources[0].gas # 가스
-
-
+        obs[4] = int((self.countdown/14) % int(1344/14))  # countdown
+        obs[5] = self.stage  # stage
 
 
         return obs

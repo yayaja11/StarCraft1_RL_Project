@@ -81,8 +81,8 @@ class StarCraftEnv(gym.Env):
 
         self.obs = self._make_observation()
         self.obs_pre = self.obs
-        self.init_timer = 1  # elasped time 초기화
-        self.over28stage = 0
+        self.countdown = 804
+        self.stage = 0
 
         return self.obs
 
