@@ -5,15 +5,52 @@ import torchcraft.Constants as tcc
 import TorchCraft.starcraft_gym.proto as proto
 import TorchCraft.starcraft_gym.gym_utils as utils
 
+STATE_BUNKER = [(100,39,0), (112,39,0),(124,39,0),(136,39,0),(148,39,0)
+                                                               ,(156, 47,0)
+                ,(100,55,0),(112,55,0),(124,55,0),(136,55,0),         (156, 55,0)
+        ,(88,63,0),(100,63,0),(112,63,0),(124,63,0),(136,63,0),         (156, 63,0),(168,63,0)
+,(76,71,0)
+,(76,79,0),       (100, 79,0),(112,79,0),(124,79,0),(136,79,0),         (156, 79,0),(168,78,0)
+,(76,87,0),       (100, 87,0),(112,87,0),(124,87,0),(136,87,0),         (156, 87,0),(168,87,0)
+,(76,95,0),       (100, 95,0),(112,95,0),(124,95,0),(136,95,0),         (156, 95,0),(168,95,0)
+,(76,103,0),      (100, 103,0),(112,103,0),(124,103,0),(136,103,0),     (156, 103,0),(168,103,0)
+,(76,111,0),                                                    (156, 111,0),(168,111,0)
+    ,(84,119,0),(96,119,0),(108,119,0),(120,119,0),(132,119,0),(144,119,0),(156,111,0)
+                ,
+                (100,39,1), (112,39,1),(124,39,1),(136,39,1),(148,39,1)
+                                                               ,(156, 47,1)
+                ,(100,55,1),(112,55,1),(124,55,1),(136,55,1),         (156, 55,1)
+        ,(88,63,1),(100,63,1),(112,63,1),(124,63,1),(136,63,1),         (156, 63,1),(168,63,1)
+,(76,71,1)
+,(76,79,1),       (100, 79,1),(112,79,1),(124,79,1),(136,79,1),         (156, 79,1),(168,78,1)
+,(76,87,1),       (100, 87,1),(112,87,1),(124,87,1),(136,87,1),         (156, 87,1),(168,87,1)
+,(76,95,1),       (100, 95,1),(112,95,1),(124,95,1),(136,95,1),         (156, 95,1),(168,95,1)
+,(76,103,1),      (100, 103,1),(112,103,1),(124,103,1),(136,103,1),     (156, 103,1),(168,103,1)
+,(76,111,1),                                                    (156, 111,1),(168,111,1)
+    ,(84,119,1),(96,119,1),(108,119,1),(120,119,1),(132,119,1),(144,119,1),(156,111,1)
+                ,
+                (100,39,2), (112,39,2),(124,39,2),(136,39,2),(148,39,2)
+                                                               ,(156, 47,2)
+                ,(100,55,2),(112,55,2),(124,55,2),(136,55,2),         (156, 55,2)
+        ,(88,63,2),(100,63,2),(112,63,2),(124,63,2),(136,63,2),         (156, 63,2),(168,63,2)
+,(76,71,2)
+,(76,79,2),       (100, 79,2),(112,79,2),(124,79,2),(136,79,2),         (156, 79,2),(168,78,2)
+,(76,87,2),       (100, 87,2),(112,87,2),(124,87,2),(136,87,2),         (156, 87,2),(168,87,2)
+,(76,95,2),       (100, 95,2),(112,95,2),(124,95,2),(136,95,2),         (156, 95,2),(168,95,2)
+,(76,103,2),      (100, 103,2),(112,103,2),(124,103,2),(136,103,2),     (156, 103,2),(168,103,2)
+,(76,111,2),                                                    (156, 111,2),(168,111,2)
+    ,(84,119,2),(96,119,2),(108,119,2),(120,119,2),(132,119,2),(144,119,2),(156,111,2)
+
+                ,(0,0,3), (0,0,4)  ]  # 임시
 
 class StarCraftEnv(gym.Env):
     def __init__(self, server_ip, server_port, speed, frame_skip, self_play, max_episode_steps):
+        print(len(STATE_BUNKER))
         self.client = tc.Client()  # torchcrafy_py에선 여기에 ip랑 port 전달
         self.server_ip = server_ip
         self.server_port = int(server_port)
         self.client.connect(self.server_ip, self.server_port)
         self.state = self.client.init(micro_battles=True)   #  setup state
-        print(self.state.player_info)
         self.speed = speed
         self.frame_skip = frame_skip
         self.self_play = self_play
@@ -39,6 +76,16 @@ class StarCraftEnv(gym.Env):
 
         self.client.send(self._make_commands(action))
         self.state = self.client.recv()   # torchcraft_py에선 receive
+        temp_bunker_num = 0
+        for i in self.state.units[0]:  # 받고 맞는지확인
+            if i.type == 125:
+                temp_bunker_num += 1
+            if self.bunker_num <= temp_bunker_num:
+
+                self.post_action = True
+            else:
+                self.post_action = False
+
         self.obs = self._make_observation()
 
         reward = self._compute_reward()
@@ -78,7 +125,7 @@ class StarCraftEnv(gym.Env):
 
         self.client.send(setup)
         self.state = self.client.recv() # self.state = self.client.state.d 라는 torchcraft py를 변환한 버전
-
+        print('done',self.state.frame.resources)
         self.obs = self._make_observation()
         self.obs_pre = self.obs
         
@@ -91,6 +138,9 @@ class StarCraftEnv(gym.Env):
         self.action_save = 0
         self.curr_upgrade = 1
         self.miss_action = 0
+        self.hydra_switch = 0
+        self.post_action = True
+        self.bunker_num = 0
 
         return self.obs
 

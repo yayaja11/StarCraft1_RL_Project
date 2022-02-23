@@ -52,7 +52,7 @@ STATE_BUNKER = [(100,39,0), (112,39,0),(124,39,0),(136,39,0),(148,39,0)
                 ,(0,0,3), (0,0,4) ]
 
 class SingleBattleEnv(sc.StarCraftEnv):
-    def __init__(self, server_ip, server_port, speed=100, frame_skip=0, self_play = False, max_episode_steps = 2000):
+    def __init__(self, server_ip, server_port, speed=10, frame_skip=0, self_play = False, max_episode_steps = 2000):
         # speed 60= 1000프레임을 60초동안. 1=1000프레임을 1초동안
         self.speed = speed
         self.countdown = 806
@@ -63,6 +63,9 @@ class SingleBattleEnv(sc.StarCraftEnv):
         self.action_save = 0  # action저장하고 돈쌓일때까지 기다릴때
         self.curr_upgrade = 1
         self.miss_action = 0
+        self.hydra_switch = 0
+        self.post_action = True
+
         super(SingleBattleEnv, self).__init__(server_ip, server_port, speed, frame_skip, self_play, max_episode_steps)
 
 
@@ -107,6 +110,9 @@ class SingleBattleEnv(sc.StarCraftEnv):
 
 
         for a in self.state.units[0]:
+            if self.post_action is False:  # 이전 행동이 완료되었는지
+                return cmds
+
             if a.type == 7 and a.idle == True:
                 print('@@@@@')
                 scv_id = a.id
@@ -142,9 +148,17 @@ class SingleBattleEnv(sc.StarCraftEnv):
 
         print('action:', STATE_BUNKER[action])
 
+
+        if self.hydra_switch ==1:
+            cmds.append([
+                tcc.command_unit_protected, scv_id,
+                tcc.unitcommandtypes.Build, -1, STATE_BUNKER[self.action_save][0], STATE_BUNKER[self.action_save][1],
+                tcc.unittypes.Terran_Supply_Depot])
+
         # if STATE_BUNKER[action][2] == 1 or STATE_BUNKER[action][2] == 2 or STATE_BUNKER[action][2] == 0:
         if STATE_BUNKER[action][2] == 0:  # 일반 벙커
             if self.check_normal_resources():
+                self.action_save = action
                 cmds.append([
                     tcc.command_unit_protected, scv_id,
                     tcc.unitcommandtypes.Build, -1, STATE_BUNKER[action][0], STATE_BUNKER[action][1], tcc.unittypes.Terran_Supply_Depot])
@@ -155,19 +169,24 @@ class SingleBattleEnv(sc.StarCraftEnv):
 
         elif STATE_BUNKER[action][2] == 1:  # 영웅 벙커
             if self.check_hero_resources():  # 히드라를 만들고 시간이끝나서 다음 판으로 넘어갔을 때, 멈추는듯 or 가는길에 업그레이드해서
+                self.action_save = action
+                self.hydra_switch = 1
                 cmds.append([
                     tcc.command_unit_protected, hydra_id,
-                    tcc.unitcommandtypes.Morph, -1, -1, -1, tcc.unittypes.Zerg_Lurker]) 
+                    tcc.unitcommandtypes.Morph, -1, -1, -1, tcc.unittypes.Zerg_Lurker])
                 cmds.append([
                     tcc.command_unit_protected, scv_id,
                     tcc.unitcommandtypes.Build, -1, STATE_BUNKER[action][0], STATE_BUNKER[action][1], tcc.unittypes.Terran_Supply_Depot])
             else:
                 print('miss action')
                 self.miss_action = 1
+
+
                 return cmds
 
         elif STATE_BUNKER[action][2] == 2 and self.stage >= 10:  # 유니크 벙커
             if self.check_unique_resources():
+                self.action_save = action
                 cmds.append([
                     tcc.command_unit_protected, larva_id,
                     tcc.unitcommandtypes.Morph, -1, -1, -1, tcc.unittypes.Zerg_Drone])
@@ -189,6 +208,13 @@ class SingleBattleEnv(sc.StarCraftEnv):
                 return cmds
 
 
+        elif STATE_BUNKER[action][2] == 4:
+            return cmds
+
+
+        f = open('C:\starlog\log_action.txt', 'a')
+        f.write(str(STATE_BUNKER[action]))
+        f.close()
         # else:
         #     if myself is None:
         #         return cmds
@@ -246,7 +272,9 @@ class SingleBattleEnv(sc.StarCraftEnv):
         obs[5] = self.stage  # stage
         obs[6] = self.curr_upgrade
 
-
+        print(len(self.state.units[0]))
+        for i in self.state.units[0]:
+            print(i.type, i.x, i.y)
         return obs
 
     def _check_done(self):
@@ -271,9 +299,8 @@ class SingleBattleEnv(sc.StarCraftEnv):
             reward = 1000
             self.episode_wins += 1
 
-
-
         return reward
+
 
     def check_normal_resources(self):
         if self.state.frame.resources[0].ore >= 100:
@@ -300,8 +327,6 @@ class SingleBattleEnv(sc.StarCraftEnv):
             return True
         else:
             return False
-
-
 
     def _get_info(self):
         return {}
