@@ -74,17 +74,30 @@ class StarCraftEnv(gym.Env):
         self.episode_steps += 1
         #print('action:', action)
 
-        self.client.send(self._make_commands(action))
+        whattosend = self._make_commands(action)
+        print('I send:', whattosend)
+        self.client.send(whattosend)
         self.state = self.client.recv()   # torchcraft_py에선 receive
         temp_bunker_num = 0
-        for i in self.state.units[0]:  # 받고 맞는지확인
-            if i.type == 125:
-                temp_bunker_num += 1
-            if self.bunker_num <= temp_bunker_num:
 
+
+        for i in self.state.units[0]:  # 받고 맞는지확인
+            if i.x == STATE_BUNKER[self.action_save][0] + 6 and i.y == STATE_BUNKER[self.action_save][1] + 1:
                 self.post_action = True
             else:
                 self.post_action = False
+        if STATE_BUNKER[self.action_save][2] == 3:
+            if self.state.frame.resources[0].upgrades_level == self.upgrade_pre:
+                self.post_action = False
+            else:
+                self.post_action = True
+
+        if self.unique_exception == 1:
+            self.post_action = True
+
+        if self.first_bunker == 0:
+            self.first_bunker = 1
+            self.post_action = True
 
         self.obs = self._make_observation()
 
@@ -93,6 +106,7 @@ class StarCraftEnv(gym.Env):
         info = self._get_info()
 
         self.obs_pre = self.obs
+        self.upgrade_pre = self.state.frame.resources[0].upgrades_level
         return self.obs, reward, done, info
 
     def _reset(self):
@@ -138,9 +152,12 @@ class StarCraftEnv(gym.Env):
         self.action_save = 0
         self.curr_upgrade = 1
         self.miss_action = 0
-        self.hydra_switch = 0
         self.post_action = True
         self.bunker_num = 0
+        self.hydra_switch = 0
+        self.unique_switch = 0
+        self.unique_exception = 0
+        self.first_bunker = 0
 
         return self.obs
 

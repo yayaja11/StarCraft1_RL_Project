@@ -51,6 +51,8 @@ STATE_BUNKER = [(100,39,0), (112,39,0),(124,39,0),(136,39,0),(148,39,0)
 
                 ,(0,0,3), (0,0,4) ]
 
+
+
 class SingleBattleEnv(sc.StarCraftEnv):
     def __init__(self, server_ip, server_port, speed=10, frame_skip=0, self_play = False, max_episode_steps = 2000):
         # speed 60= 1000프레임을 60초동안. 1=1000프레임을 1초동안
@@ -64,7 +66,10 @@ class SingleBattleEnv(sc.StarCraftEnv):
         self.curr_upgrade = 1
         self.miss_action = 0
         self.hydra_switch = 0
+        self.unique_switch = 0
+        self.unique_exception = 0
         self.post_action = True
+        self.first_bunker = 0
 
         super(SingleBattleEnv, self).__init__(server_ip, server_port, speed, frame_skip, self_play, max_episode_steps)
 
@@ -76,8 +81,8 @@ class SingleBattleEnv(sc.StarCraftEnv):
         return spaces.Discrete(self.number_of_state)
 
     def _observation_space(self):
-        obs_low  = [1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8]
-        obs_high  = [1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8]
+        obs_low  = [1,2,3,4,5,6,7,8]
+        obs_high  = [1,2,3,4,5,6,7,8]
         return spaces.Box(np.array(obs_low), np.array(obs_high))
 
     def _make_commands(self, action):
@@ -93,23 +98,19 @@ class SingleBattleEnv(sc.StarCraftEnv):
         if self.state.units == {}:  # 아무 유닛도 아직 없을때 처리
             return cmds
 
-        # print('buildable?:',self.state.buildable_data)
-        # 각각의 유닛이 무엇인지 확인하는 부분
-        # for ii in self.state.units[0]:
-#        print(issubclass(int, self.state))
-
-        # object_methods = [method_name for method_name in dir(self.state.frame.resources[0].upgrades_level)]  # state하위 모든 메쏘드
+        # object_methods = [method_name for method_name in dir(self.state.frame.resources[0])]  # state하위 모든 메쏘드
         # for i in object_methods:
         #     a = [c for c in dir(i)]
         #     print('1', a)
-        # print('1',type(self.state.frame.resources[0].upgrades_level))
-        # print('2',self.state.frame.resources[0].upgrades_level)
+        # print('1',type(self.state.frame.resources[0]))
+        # print('2',self.state.frame.resources[0])
 
         # print('mineral:',self.state.units[0][0].id)
         # if self.state.frame.resources[0].ore >= 100:
 
 
         for a in self.state.units[0]:
+            print('now post action', self.post_action)
             if self.post_action is False:  # 이전 행동이 완료되었는지
                 return cmds
 
@@ -145,27 +146,42 @@ class SingleBattleEnv(sc.StarCraftEnv):
 
         # if STATE_BUNKER[action][2] == 2 and self.state.frame.resources[0].orc >= 300  and self.state.frame.resources[0].gas >= 200
 
+        f = open('C:\starlog\log_upgrade.txt', 'a')
+        data_upgrade =str(self.state.frame.resources[0].upgrades_level) + ',' + str(self.state.frame.resources[0].upgrades) + ',' + str(self.state.frame.resources[0].ore) \
+                + '\n'
+        f.write(data_upgrade)
+
+        f.close()
+
+        yy = open('C:\starlog\log_action.txt', 'a')
+
+        yy.write(str(STATE_BUNKER[action]))
+        yy.write('\n')
+        yy.close()
 
         print('action:', STATE_BUNKER[action])
+        print(self.hydra_switch, self.unique_switch, STATE_BUNKER[action], STATE_BUNKER[self.action_save])
 
-
-        if self.hydra_switch ==1:
+        if self.hydra_switch == 1 or self.unique_switch == 1:
+            self.hydra_switch = 0
+            self.unique_switch = 0
+            self.first_bunker = 1
             cmds.append([
                 tcc.command_unit_protected, scv_id,
                 tcc.unitcommandtypes.Build, -1, STATE_BUNKER[self.action_save][0], STATE_BUNKER[self.action_save][1],
                 tcc.unittypes.Terran_Supply_Depot])
 
-        # if STATE_BUNKER[action][2] == 1 or STATE_BUNKER[action][2] == 2 or STATE_BUNKER[action][2] == 0:
         if STATE_BUNKER[action][2] == 0:  # 일반 벙커
             if self.check_normal_resources():
                 self.action_save = action
+                print('constuct normal bunker')
+                self.first_bunker = 1
                 cmds.append([
                     tcc.command_unit_protected, scv_id,
                     tcc.unitcommandtypes.Build, -1, STATE_BUNKER[action][0], STATE_BUNKER[action][1], tcc.unittypes.Terran_Supply_Depot])
             else:
                 self.miss_action = 1
                 return cmds
-
 
         elif STATE_BUNKER[action][2] == 1:  # 영웅 벙커
             if self.check_hero_resources():  # 히드라를 만들고 시간이끝나서 다음 판으로 넘어갔을 때, 멈추는듯 or 가는길에 업그레이드해서
@@ -174,28 +190,25 @@ class SingleBattleEnv(sc.StarCraftEnv):
                 cmds.append([
                     tcc.command_unit_protected, hydra_id,
                     tcc.unitcommandtypes.Morph, -1, -1, -1, tcc.unittypes.Zerg_Lurker])
-                cmds.append([
-                    tcc.command_unit_protected, scv_id,
-                    tcc.unitcommandtypes.Build, -1, STATE_BUNKER[action][0], STATE_BUNKER[action][1], tcc.unittypes.Terran_Supply_Depot])
             else:
                 print('miss action')
                 self.miss_action = 1
 
 
-                return cmds
+        elif STATE_BUNKER[action][2] == 2:  # 유니크 벙커
+            if self.stage >= 10:
+                if self.check_unique_resources():
+                    self.action_save = action
+                    self.unique_switch = 1
+                    cmds.append([
+                        tcc.command_unit_protected, larva_id,
+                        tcc.unitcommandtypes.Morph, -1, -1, -1, tcc.unittypes.Zerg_Drone])
+                else:
+                    self.unique_exception = 1
+                    self.miss_action = 1
+                    return cmds
 
-        elif STATE_BUNKER[action][2] == 2 and self.stage >= 10:  # 유니크 벙커
-            if self.check_unique_resources():
-                self.action_save = action
-                cmds.append([
-                    tcc.command_unit_protected, larva_id,
-                    tcc.unitcommandtypes.Morph, -1, -1, -1, tcc.unittypes.Zerg_Drone])
-                cmds.append([
-                    tcc.command_unit_protected, scv_id,
-                    tcc.unitcommandtypes.Build, -1, STATE_BUNKER[action][0], STATE_BUNKER[action][1], tcc.unittypes.Terran_Supply_Depot])
-            else:
-                self.miss_action = 1
-                return cmds
+
 
         elif STATE_BUNKER[action][2] == 3:
             if self.check_upgrade_resources():
@@ -207,24 +220,8 @@ class SingleBattleEnv(sc.StarCraftEnv):
                 self.miss_action = 1
                 return cmds
 
-
         elif STATE_BUNKER[action][2] == 4:
             return cmds
-
-
-        f = open('C:\starlog\log_action.txt', 'a')
-        f.write(str(STATE_BUNKER[action]))
-        f.close()
-        # else:
-        #     if myself is None:
-        #         return cmds
-
-            # print( myself.x, myself.y)
-            # print(myself.type)
-
-            # cmds.append([
-            #     tcc.command_unit_protected, myself_id,
-            #     tcc.unitcommandtypes.Build, -1, myself.x+30-i, myself.y+30-j, tcc.unittypes.Terran_Supply_Depot])  # numpy.float64형식을 받을수없다고해서 int로 바꿈
 
         return cmds
 
@@ -271,10 +268,10 @@ class SingleBattleEnv(sc.StarCraftEnv):
         obs[4] = int((self.countdown/14) % int(1344/14))  # countdown
         obs[5] = self.stage  # stage
         obs[6] = self.curr_upgrade
+        obs[7] = self.miss_action
 
-        print(len(self.state.units[0]))
-        for i in self.state.units[0]:
-            print(i.type, i.x, i.y)
+
+
         return obs
 
     def _check_done(self):
@@ -289,8 +286,7 @@ class SingleBattleEnv(sc.StarCraftEnv):
             reward = 1
         if self.obs_pre[1] < self.obs[1]:
             reward = 1
-        self.obs[10] = self.miss_action
-        if self.obs[10] == 1:
+        if self.obs[7] == 1:
             self.miss_action = 0
             reward = -50
         if self._check_done() and not bool(self.state.battle_won):
