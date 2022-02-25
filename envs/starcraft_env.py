@@ -28,20 +28,7 @@ STATE_BUNKER = [(100,39,0), (112,39,0),(124,39,0),(136,39,0),(148,39,0)
 ,(76,103,1),      (100, 103,1),(112,103,1),(124,103,1),(136,103,1),     (156, 103,1),(168,103,1)
 ,(76,111,1),                                                    (156, 111,1),(168,111,1)
     ,(84,119,1),(96,119,1),(108,119,1),(120,119,1),(132,119,1),(144,119,1),(156,111,1)
-                ,
-                (100,39,2), (112,39,2),(124,39,2),(136,39,2),(148,39,2)
-                                                               ,(156, 47,2)
-                ,(100,55,2),(112,55,2),(124,55,2),(136,55,2),         (156, 55,2)
-        ,(88,63,2),(100,63,2),(112,63,2),(124,63,2),(136,63,2),         (156, 63,2),(168,63,2)
-,(76,71,2)
-,(76,79,2),       (100, 79,2),(112,79,2),(124,79,2),(136,79,2),         (156, 79,2),(168,78,2)
-,(76,87,2),       (100, 87,2),(112,87,2),(124,87,2),(136,87,2),         (156, 87,2),(168,87,2)
-,(76,95,2),       (100, 95,2),(112,95,2),(124,95,2),(136,95,2),         (156, 95,2),(168,95,2)
-,(76,103,2),      (100, 103,2),(112,103,2),(124,103,2),(136,103,2),     (156, 103,2),(168,103,2)
-,(76,111,2),                                                    (156, 111,2),(168,111,2)
-    ,(84,119,2),(96,119,2),(108,119,2),(120,119,2),(132,119,2),(144,119,2),(156,111,2)
-
-                ,(0,0,3), (0,0,4)  ]  # 임시
+                ,(0,0,3)]
 
 class StarCraftEnv(gym.Env):
     def __init__(self, server_ip, server_port, speed, frame_skip, self_play, max_episode_steps):
@@ -50,7 +37,7 @@ class StarCraftEnv(gym.Env):
         self.server_ip = server_ip
         self.server_port = int(server_port)
         self.client.connect(self.server_ip, self.server_port)
-        self.state = self.client.init(micro_battles=True)   #  setup state
+        self.state = self.client.init(micro_battles=True)   # setup state
         self.speed = speed
         self.frame_skip = frame_skip
         self.self_play = self_play
@@ -70,37 +57,87 @@ class StarCraftEnv(gym.Env):
     def __del__(self):
         self.client.close()
 
+    def empty_commands(self):
+        # 돈없으면 기다리기
+        self.client.send([])
+        self.state = self.client.recv()
+
     def _step(self, action):
+
         self.episode_steps += 1
         #print('action:', action)
+        while self.state.frame_from_bwapi <= 120: # 80 프레임까지는 유닛이 초기화되지 않을 수 있으므로 대기
+            self.empty_commands()
 
-        whattosend = self._make_commands(action)
-        print('I send:', whattosend)
+        if STATE_BUNKER[action][2] == 0:        # 일반벙커를 지을때 scv가 일도중이면안되고 히드라 스위치도 꺼져있어야하고, 업그레이드 도중이면 안됨 
+            if self.scv_working == 0 and self.hydra_switch == 0 and self.upgrading == 0:
+                while self.check_bunker_resources() is False:
+                    self.empty_commands()
+                self.next_action = ['bunker']
+                
+        elif STATE_BUNKER[action][2] == 1:      # 영웅벙커를 지을때, scv가 일도중이면안되고 히드라 스위치가 켜져있어야하고, 업그레이드 도중이면 안됨
+            if self.scv_working == 0 and self.hydra_switch == 1 and self.upgrading == 0:
+                while self.check_bunker_resources() is False:
+                    self.empty_commands()
+                self.next_action = ['bunker']
+
+            elif self.scv_working == 0 and self.hydra_switch == 0 and self.upgrading == 0:  # 영웅벙커를 지을 때 히드라스위치가 꺼져있으면 켜야함. (일도중x 업그레이드도중x)
+                while self.check_hero_resources() is False:
+                    self.empty_commands()
+                self.next_action = ['hydra']
+
+            else:
+                self.empty_commands()
+
+        elif STATE_BUNKER[action][2] == 3:      # 업그레이드할 때, scv가 일도중이면안되고, 업그레이드 도중이면안됨
+            if self.scv_working == 0 and self.upgrading == 0:
+                while self.check_upgrade_resources() == False:      # 돈있는지
+                    self.empty_commands()
+                self.next_action = ['upgrade']
+
+            else:
+                self.empty_commands()
+
+        whattosend = self._make_commands(self.next_action,STATE_BUNKER[action][0], STATE_BUNKER[action][1])# 위에서 조건에 따라 만들어진 action을 명령어로 제작
+        self.number_of_action += 1
         self.client.send(whattosend)
-        self.state = self.client.recv()   # torchcraft_py에선 receive
-        temp_bunker_num = 0
+        if self.next_action == ['upgrade']:
+            upgrade_start = 1
+        self.state = self.client.recv()
+        for a in self.state.units[0]:
+            if a.type == 7 and a.idle == True:
+                self.scv_working == 0
+            elif a.type ==7 and a.idle == False:
+                self.scv_working == 1
 
+            ihydra = a
 
-        for i in self.state.units[0]:  # 받고 맞는지확인
-            if i.x == STATE_BUNKER[self.action_save][0] + 6 and i.y == STATE_BUNKER[self.action_save][1] + 1:
-                self.post_action = True
-            else:
-                self.post_action = False
+        print('I send starcraft:', whattosend, self.number_of_action)
+        yy = open('C:\starlog\log_action.txt', 'a')
+        yy.write(str(STATE_BUNKER[action]))
+        yy.write('\n')
+        yy.close()
+        # scv가 명령을 받아 벙커지으러 감, upgrade, lurker 모두 일정 시간이 요구됨.
+        # scv가 idle이 아닌 상태면 명령 x
+        # upgrade가 진행되는중이면 명령 x -> 5 frame?정도. action하고 upgrades_level이 바뀔때까지
+        # lurker -> 러커 변태도중 히드라 사라짐.  히드라 스위치 켜져있으면 action x
+        #
+        # for i in self.state.units[0]:  #
+        #     if self.number_of_action > 2:
+        #         if i.x == STATE_BUNKER[self.action_save][0] + 6 and i.y == STATE_BUNKER[self.action_save][1] + 1:
+        #             self.post_action = True
+        #             self.number_of_action += 1
+        #         else:
+        #             self.post_action = False
+        #     else:
+        #         self.post_action = True
         if STATE_BUNKER[self.action_save][2] == 3:
-            if self.state.frame.resources[0].upgrades_level == self.upgrade_pre:
-                self.post_action = False
+            if self.state.frame.resources[0].upgrades_level == self.upgrade_pre and upgrade_start == 1:
+                self.upgrading = 1
             else:
-                self.post_action = True
-
-        if self.unique_exception == 1:
-            self.post_action = True
-
-        if self.first_bunker == 0:
-            self.first_bunker = 1
-            self.post_action = True
+                self.upgrading = 0
 
         self.obs = self._make_observation()
-
         reward = self._compute_reward()
         done = self._check_done()
         info = self._get_info()
@@ -158,6 +195,8 @@ class StarCraftEnv(gym.Env):
         self.unique_switch = 0
         self.unique_exception = 0
         self.first_bunker = 0
+        self.number_of_action = 0
+        self.next_action = []
 
         return self.obs
 
@@ -169,7 +208,7 @@ class StarCraftEnv(gym.Env):
         def _observation_space(self):
             raise NotImplementedError
 
-        def _make_commands(self, action):
+        def _make_commands(self, action,x,y):
             raise NotImplementedError
 
         def _make_observation(self):
@@ -183,3 +222,4 @@ class StarCraftEnv(gym.Env):
 
         def _get_info(self):
             return {}
+
