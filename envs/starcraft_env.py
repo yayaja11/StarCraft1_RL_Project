@@ -57,66 +57,187 @@ class StarCraftEnv(gym.Env):
     def __del__(self):
         self.client.close()
 
+    def check_scv_working(self):
+        for i in self.state.units[0]:
+            if i.type == 7:
+                scv = i
+                break
+        if scv.idle is False or scv.x == 440:
+            self.scv_working = 1
+            self.empty_commands()
+        else:
+            self.scv_working = 0
+
+
     def empty_commands(self):
         # 돈없으면 기다리기
         self.client.send([])
         self.state = self.client.recv()
+        self.done = self._check_done()
 
     def _step(self, action):
 
+        print('step start here')
+        print(self.state.frame_from_bwapi)
+        scv = None
+        hydra = None
         self.episode_steps += 1
+        self.empty_commands()
         #print('action:', action)
-        while self.state.frame_from_bwapi <= 120: # 80 프레임까지는 유닛이 초기화되지 않을 수 있으므로 대기
+        while self.state.frame_from_bwapi <= 100: # 80 프레임까지는 유닛이 초기화되지 않을 수 있으므로 대기
             self.empty_commands()
 
-        if STATE_BUNKER[action][2] == 0:        # 일반벙커를 지을때 scv가 일도중이면안되고 히드라 스위치도 꺼져있어야하고, 업그레이드 도중이면 안됨 
-            if self.scv_working == 0 and self.hydra_switch == 0 and self.upgrading == 0:
-                while self.check_bunker_resources() is False:
-                    self.empty_commands()
-                self.next_action = ['bunker']
-                
-        elif STATE_BUNKER[action][2] == 1:      # 영웅벙커를 지을때, scv가 일도중이면안되고 히드라 스위치가 켜져있어야하고, 업그레이드 도중이면 안됨
-            if self.scv_working == 0 and self.hydra_switch == 1 and self.upgrading == 0:
-                while self.check_bunker_resources() is False:
-                    self.empty_commands()
-                self.next_action = ['bunker']
 
-            elif self.scv_working == 0 and self.hydra_switch == 0 and self.upgrading == 0:  # 영웅벙커를 지을 때 히드라스위치가 꺼져있으면 켜야함. (일도중x 업그레이드도중x)
+        for a in self.state.units[0]:
+            if a.type == 7:
+                scv_id = a.id
+                scv = a
+
+            elif a.type == 38:
+                hydra_id = a.id
+                hydra = a
+
+
+        if STATE_BUNKER[action][2] == 0:
+            if self.scv_working == 0:
+                while self.check_bunker_resources() is False:
+                    self.empty_commands()
+                self.next_action = ['bunker']
+                whattosend = self._make_commands(self.next_action, STATE_BUNKER[action][0],
+                                                 STATE_BUNKER[action][1])  # 위에서 조건에 따라 만들어진 action을 명령어로 제작
+                self.number_of_action += 1
+                self.client.send(whattosend)
+                self.state = self.client.recv()
+                self.done = self._check_done()
+            else:
+                self.empty_commands()
+
+        elif STATE_BUNKER[action][2] == 1:
+            if self.hydra_switch == 0:
                 while self.check_hero_resources() is False:
                     self.empty_commands()
                 self.next_action = ['hydra']
-
-            else:
-                self.empty_commands()
-
-        elif STATE_BUNKER[action][2] == 3:      # 업그레이드할 때, scv가 일도중이면안되고, 업그레이드 도중이면안됨
-            if self.scv_working == 0 and self.upgrading == 0:
-                while self.check_upgrade_resources() == False:      # 돈있는지
+                whattosend = self._make_commands(self.next_action, STATE_BUNKER[action][0],
+                                                 STATE_BUNKER[action][1])  # 위에서 조건에 따라 만들어진 action을 명령어로 제작
+                self.number_of_action += 1
+                self.client.send(whattosend)
+                self.state = self.client.recv()
+                self.pre_frame = self.state.frame_from_bwapi
+                while self.pre_frame + 33 >= self.state.frame_from_bwapi:
+                    print('wwwwww')
                     self.empty_commands()
-                self.next_action = ['upgrade']
+
+                self.hydra_switch = 1
 
             else:
+                while self.check_bunker_resources() is False:
+                    self.empty_commands()
+                self.next_action = ['bunker']
+                whattosend = self._make_commands(self.next_action, STATE_BUNKER[action][0],
+                                                 STATE_BUNKER[action][1])  # 위에서 조건에 따라 만들어진 action을 명령어로 제작
+                self.number_of_action += 1
+                self.client.send(whattosend)
+                self.state = self.client.recv()
+                self.done = self._check_done()
+
+        elif STATE_BUNKER[action][2] == 3 :  # 업그레이드할 때, scv가 일도중이면안되고, 업그레이드 도중이면안됨
+            while self.check_upgrade_resources() == False:  # 돈있는지
+                self.empty_commands()
+            self.next_action = ['upgrade']
+            whattosend = self._make_commands(self.next_action, STATE_BUNKER[action][0],
+                                             STATE_BUNKER[action][1])  # 위에서 조건에 따라 만들어진 action을 명령어로 제작
+            self.number_of_action += 1
+            self.client.send(whattosend)
+            self.state = self.client.recv()
+            self.pre_frame = self.state.frame_from_bwapi
+            while self.pre_frame + 16 >= self.state.frame_from_bwapi:
+                print('uuuuuu')
                 self.empty_commands()
 
-        whattosend = self._make_commands(self.next_action,STATE_BUNKER[action][0], STATE_BUNKER[action][1])# 위에서 조건에 따라 만들어진 action을 명령어로 제작
-        self.number_of_action += 1
-        self.client.send(whattosend)
-        if self.next_action == ['upgrade']:
-            upgrade_start = 1
-        self.state = self.client.recv()
+        else:
+            self.empty_commands()
+
+        # print(self.scv_working, self.hydra_switch, self.upgrading, self.next_action)
+        # if STATE_BUNKER[action][2] == 0:        # 일반벙커를 지을때 scv가 일도중이면안되고 히드라 스위치도 꺼져있어야하고, 업그레이드 도중이면 안됨
+        #     if self.scv_working == 0 and self.hydra_switch == 0 and self.upgrading == 0:
+        #         while self.check_bunker_resources() is False:
+        #             self.empty_commands()
+        #         self.next_action = ['bunker']
+        #
+        # elif STATE_BUNKER[action][2] == 1:      # 영웅벙커를 지을때, scv가 일도중이면안되고 히드라 스위치가 켜져있어야하고, 업그레이드 도중이면 안됨
+        #     if self.scv_working == 0 and self.hydra_switch == 1 and self.upgrading == 0:
+        #         while self.check_bunker_resources() is False:
+        #             self.empty_commands()
+        #         self.next_action = ['bunker']
+        #
+        #     elif self.scv_working == 0 and self.hydra_switch == 0 and self.upgrading == 0:  # 영웅벙커를 지을 때 히드라스위치가 꺼져있으면 켜야함. (일도중x 업그레이드도중x)
+        #         while self.check_hero_resources() is False:
+        #             self.empty_commands()
+        #         self.next_action = ['hydra']
+        #
+        #     else:
+        #         self.empty_commands()
+        #
+        # elif STATE_BUNKER[action][2] == 3:      # 업그레이드할 때, scv가 일도중이면안되고, 업그레이드 도중이면안됨
+        #     if self.scv_working == 0 and self.upgrading == 0:
+        #         while self.check_upgrade_resources() == False:      # 돈있는지
+        #             self.empty_commands()
+        #         self.next_action = ['upgrade']
+        #
+        #     else:
+        #         self.empty_commands()
+        #
+        # if self.next_action == ['upgrade']:
+        #     upgrade_start = 1
         for a in self.state.units[0]:
-            if a.type == 7 and a.idle == True:
-                self.scv_working == 0
-            elif a.type ==7 and a.idle == False:
-                self.scv_working == 1
+            if a.type == 7:
+                scv = a
+                print('----------------------')
+                print(self.state.frame_from_bwapi)
+                print(a.x, a.y)
+                print('is building', a.constructing)
+                print('is consturcted', a.being_constructed)
+                print('is command', a.command)
+                print('is completed', a.completed)
+                print('is idle', a.idle)
+        self.check_scv_working()
 
-            ihydra = a
-
-        print('I send starcraft:', whattosend, self.number_of_action)
+        print('I send starcraft:', action, self.number_of_action)
         yy = open('C:\starlog\log_action.txt', 'a')
-        yy.write(str(STATE_BUNKER[action]))
+        store = str(STATE_BUNKER[action]) + str(self.next_action)
+        yy.write(store)
         yy.write('\n')
         yy.close()
+
+        gg = open('C:\starlog\log_hydra.txt', 'a')
+        for b in self.state.units[0]:
+            if b.type == 38:
+                _hydra = 1
+                break
+            else:
+                _hydra = 0
+
+        for b in self.state.units[0]:
+            if b.type == 97:
+                _egg = 1
+                break
+            else:
+                _egg = 0
+
+        store2 = str(_hydra) +' ' + str(_egg) +' ' + str(self.state.frame_from_bwapi) + ' ' + str(self.state.frame.resources[0].ore) + ' ' + str(self.state.frame.resources[0].gas)
+        gg.write(store2)
+        gg.write('\n')
+        gg.write('-----------------------\n')
+        gg.close()
+
+        f = open('C:\starlog\log_upgrade.txt', 'a')
+        data_upgrade =str(self.state.frame.resources[0].upgrades_level) + ',' + str(self.state.frame.resources[0].upgrades) + ',' + str(self.state.frame.resources[0].ore) \
+                      + ' ' + str(self.state.frame_from_bwapi) + '\n'
+        f.write(data_upgrade)
+
+        f.close()
+
+
         # scv가 명령을 받아 벙커지으러 감, upgrade, lurker 모두 일정 시간이 요구됨.
         # scv가 idle이 아닌 상태면 명령 x
         # upgrade가 진행되는중이면 명령 x -> 5 frame?정도. action하고 upgrades_level이 바뀔때까지
@@ -131,23 +252,23 @@ class StarCraftEnv(gym.Env):
         #             self.post_action = False
         #     else:
         #         self.post_action = True
-        if STATE_BUNKER[self.action_save][2] == 3:
-            if self.state.frame.resources[0].upgrades_level == self.upgrade_pre and upgrade_start == 1:
-                self.upgrading = 1
-            else:
-                self.upgrading = 0
 
         self.obs = self._make_observation()
         reward = self._compute_reward()
-        done = self._check_done()
+
         info = self._get_info()
 
         self.obs_pre = self.obs
         self.upgrade_pre = self.state.frame.resources[0].upgrades_level
-        return self.obs, reward, done, info
+        print('is done:', self.done)
+        return self.obs, reward, self.done, info
 
     def _reset(self):
-
+        print('---------------------------------')
+        yy = open('C:\starlog\log_action.txt', 'a')
+        yy.write('---------------------------------')
+        yy.write('\n')
+        yy.close()
         utils.print_progress(self.episodes, self.episode_wins)
 #        print(not self.self_play, self.episode_steps == self.max_episode_steps)
         if not self.self_play and self.episode_steps == self.max_episode_steps:  # 종료
@@ -197,6 +318,7 @@ class StarCraftEnv(gym.Env):
         self.first_bunker = 0
         self.number_of_action = 0
         self.next_action = []
+        self.done = False
 
         return self.obs
 

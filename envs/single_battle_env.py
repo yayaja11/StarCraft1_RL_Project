@@ -41,7 +41,7 @@ STATE_BUNKER = [(100,39,0), (112,39,0),(124,39,0),(136,39,0),(148,39,0)
 
 
 class SingleBattleEnv(sc.StarCraftEnv):
-    def __init__(self, server_ip, server_port, speed=10, frame_skip=0, self_play = False, max_episode_steps = 2000):
+    def __init__(self, server_ip, server_port, speed=5, frame_skip=0, self_play = False, max_episode_steps = 2000):
         # speed 60= 1000프레임을 60초동안. 1=1000프레임을 1초동안
         self.speed = speed
         self.countdown = 806
@@ -97,7 +97,7 @@ class SingleBattleEnv(sc.StarCraftEnv):
         # if self.state.frame.resources[0].ore >= 100: #  state안에 뭐있는지 궁금할때
         for a in self.state.units[0]:
 
-            if a.type == 7 and a.idle == True:
+            if a.type == 7:
                 print('@@@@@')
                 scv_id = a.id
                 scv = a
@@ -115,48 +115,34 @@ class SingleBattleEnv(sc.StarCraftEnv):
                 hydra = a
 
         # if action[0] > 0:
-        if scv is None:
-            return cmds
+        # if scv is None:  # 빈 액션을 보내는건 starcraft_env에서 해야함
+        #     print('!! None SCV in single_battle_env')
+        #     return cmds
+        #
+        # if hydra is None:       #  히드라가 없을 때 대기
+        #     print('@@ None hydra in single_battle_env')
+        #     return cmds
 
         # if STATE_BUNKER[action][2] == 2 and self.state.frame.resources[0].orc >= 300  and self.state.frame.resources[0].gas >= 200
-
-        f = open('C:\starlog\log_upgrade.txt', 'a')
-        data_upgrade =str(self.state.frame.resources[0].upgrades_level) + ',' + str(self.state.frame.resources[0].upgrades) + ',' + str(self.state.frame.resources[0].ore) \
-                + '\n'
-        f.write(data_upgrade)
-
-        f.close()
 
         print('action:', action)
         print(self.hydra_switch, action)
         if action == ['hydra']:
-
-            if self.check_hero_resources():
-                cmds.append([
-                    tcc.command_unit_protected, hydra_id,
-                    tcc.unitcommandtypes.Morph, -1, -1, -1, tcc.unittypes.Zerg_Lurker])
-                self.hydra_switch = 1
-            else:
-                self.miss_action = 1
+            cmds.append([
+                tcc.command_unit_protected, hydra_id,
+                tcc.unitcommandtypes.Morph, -1, -1, -1, tcc.unittypes.Zerg_Lurker])
 
         elif action == ['upgrade']:
-            if self.check_upgrade_resources():
-                cmds.append([
-                    tcc.command_unit_protected, engineeringbay_id,
-                    tcc.unitcommandtypes.Upgrade, -1, -1, -1, tcc.upgradetypes.Terran_Infantry_Weapons])
-                self.upgrading = 1
-                self.upgrade_pre = self.state.frame.resources[0].upgrades_level
-            else:
-                self.miss_action = 1
+            cmds.append([
+                tcc.command_unit_protected, engineeringbay_id,
+                tcc.unitcommandtypes.Upgrade, -1, -1, -1, tcc.upgradetypes.Terran_Infantry_Weapons])
+            self.upgrade_pre = self.state.frame.resources[0].upgrades_level
 
         elif action == ['bunker']:
-            if self.check_bunker_resources():
-                cmds.append([
-                    tcc.command_unit_protected, scv_id,
-                    tcc.unitcommandtypes.Build, -1, x, y,
-                    tcc.unittypes.Terran_Supply_Depot])
-            else:
-                self.miss_action = 1
+            cmds.append([
+                tcc.command_unit_protected, scv_id,
+                tcc.unitcommandtypes.Build, -1, x, y,
+                tcc.unittypes.Terran_Supply_Depot])
         # if self.hydra_switch == 1 or self.unique_switch == 1:
         #     self.hydra_switch = 0
         #     self.unique_switch = 0
