@@ -41,8 +41,8 @@ STATE_BUNKER = [(100,39,0), (112,39,0),(124,39,0),(136,39,0),(148,39,0)
 
 
 class SingleBattleEnv(sc.StarCraftEnv):
-    def __init__(self, server_ip, server_port, speed=5, frame_skip=0, self_play = False, max_episode_steps = 2000):
-        # speed 60= 1000프레임을 60초동안. 1=1000프레임을 1초동안
+    def __init__(self, server_ip, server_port, speed=0, frame_skip=0, self_play = False, max_episode_steps = 2000):
+        # speed 60= 1000프레임을 60초동안. 1=1000프레임을 1초동안 아닌듯 1~6가는데 빨라짐
         self.speed = speed
         self.countdown = 806
         self.stage = 0
@@ -80,11 +80,11 @@ class SingleBattleEnv(sc.StarCraftEnv):
         engineeringbay = None
         hydra = None
         larva = None
-
-        if self.state is None or action is None:
-            return cmds
-        if self.state.units == {}:  # 아무 유닛도 아직 없을때 처리
-            return cmds
+        #
+        # if self.state is None or action is None:
+        #     return cmds
+        # if self.state.units == {}:  # 아무 유닛도 아직 없을때 처리
+        #     return cmds
 
         # object_methods = [method_name for method_name in dir(self.state.frame.resources[0])]  # state하위 모든 메쏘드
         # for i in object_methods:
@@ -98,7 +98,6 @@ class SingleBattleEnv(sc.StarCraftEnv):
         for a in self.state.units[0]:
 
             if a.type == 7:
-                print('@@@@@')
                 scv_id = a.id
                 scv = a
 
@@ -246,7 +245,10 @@ class SingleBattleEnv(sc.StarCraftEnv):
 
         print('frame_from_bwapi:', self.state.frame_from_bwapi)
         print('countdown timer:', int((self.countdown/14) % int(1344/14)))
-
+        lucks = 0
+        for i in self.state.frame.units[0]:
+            if i.type == 37:
+                lucks += 1
         obs[0] = lifes  # 라이프
         obs[1] = lucks  # 럭
         obs[2] = self.state.frame.resources[0].ore  # 미네랄
@@ -255,6 +257,7 @@ class SingleBattleEnv(sc.StarCraftEnv):
         obs[5] = self.stage  # stage
         obs[6] = self.curr_upgrade
         obs[7] = self.miss_action
+
 
         return obs
 
