@@ -9,27 +9,29 @@ STATE_BUNKER = [(100,39,0), (112,39,0),(124,39,0),(136,39,0),(148,39,0)
                                                                ,(156, 47,0)
                 ,(100,55,0),(112,55,0),(124,55,0),(136,55,0),         (156, 55,0)
         ,(88,63,0),(100,63,0),(112,63,0),(124,63,0),(136,63,0),         (156, 63,0),(168,63,0)
-,(76,71,0)
-,(76,79,0),       (100, 79,0),(112,79,0),(124,79,0),(136,79,0),         (156, 79,0),(168,78,0)
-,(76,87,0),       (100, 87,0),(112,87,0),(124,87,0),(136,87,0),         (156, 87,0),(168,87,0)
-,(76,95,0),       (100, 95,0),(112,95,0),(124,95,0),(136,95,0),         (156, 95,0),(168,95,0)
-,(76,103,0),      (100, 103,0),(112,103,0),(124,103,0),(136,103,0),     (156, 103,0),(168,103,0)
-,(76,111,0),                                                    (156, 111,0),(168,111,0)
-    ,(84,119,0),(96,119,0),(108,119,0),(120,119,0),(132,119,0),(144,119,0),(156,111,0)
+,(80,71,0)
+,(80,79,0),       (100, 79,0),(112,79,0),(124,79,0),(136,79,0),         (156, 79,0),(168,78,0)
+,(80,87,0),       (100, 87,0),(112,87,0),(124,87,0),(136,87,0),         (156, 87,0),(168,87,0)
+,(80,95,0),       (100, 95,0),(112,95,0),(124,95,0),(136,95,0),         (156, 95,0),(168,95,0)
+,(80,103,0),      (100, 103,0),(112,103,0),(124,103,0),(136,103,0),     (156, 103,0),(168,103,0)
+,(80,111,0),                                                            (156, 111,0),(168,111,0)
+    ,(84,119,0),(96,119,0),(108,119,0),(120,119,0),(132,119,0),(144,119,0),(156,119,0)
                 ,
                 (100,39,1), (112,39,1),(124,39,1),(136,39,1),(148,39,1)
                                                                ,(156, 47,1)
                 ,(100,55,1),(112,55,1),(124,55,1),(136,55,1),         (156, 55,1)
         ,(88,63,1),(100,63,1),(112,63,1),(124,63,1),(136,63,1),         (156, 63,1),(168,63,1)
-,(76,71,1)
-,(76,79,1),       (100, 79,1),(112,79,1),(124,79,1),(136,79,1),         (156, 79,1),(168,78,1)
-,(76,87,1),       (100, 87,1),(112,87,1),(124,87,1),(136,87,1),         (156, 87,1),(168,87,1)
-,(76,95,1),       (100, 95,1),(112,95,1),(124,95,1),(136,95,1),         (156, 95,1),(168,95,1)
-,(76,103,1),      (100, 103,1),(112,103,1),(124,103,1),(136,103,1),     (156, 103,1),(168,103,1)
-,(76,111,1),                                                    (156, 111,1),(168,111,1)
-    ,(84,119,1),(96,119,1),(108,119,1),(120,119,1),(132,119,1),(144,119,1),(156,111,1)
+,(80,71,1)
+,(80,79,1),       (100, 79,1),(112,79,1),(124,79,1),(136,79,1),         (156, 79,1),(168,78,1)
+,(80,87,1),       (100, 87,1),(112,87,1),(124,87,1),(136,87,1),         (156, 87,1),(168,87,1)
+,(80,95,1),       (100, 95,1),(112,95,1),(124,95,1),(136,95,1),         (156, 95,1),(168,95,1)
+,(80,103,1),      (100, 103,1),(112,103,1),(124,103,1),(136,103,1),     (156, 103,1),(168,103,1)
+,(80,111,1),                                                            (156, 111,1),(168,111,1)
+    ,(84,119,1),(96,119,1),(108,119,1),(120,119,1),(132,119,1),(144,119,1),(156,119,1)
                 ,(0,0,3)]
 
+
+bunker_units  = [125, 0, 1, 32]
 class StarCraftEnv(gym.Env):
     def __init__(self, server_ip, server_port, speed, frame_skip, self_play, max_episode_steps):
         print(len(STATE_BUNKER))
@@ -70,16 +72,51 @@ class StarCraftEnv(gym.Env):
             self.scv_working = 0
             return False
 
+    def check_bunker_build(self, action):   # 지금은 영웅벙커만인데 노멀벙커에도 적용해야함 그 이후에는 지은 벙커들을 기억할때 판단용도로도
+        # 몇몇 영웅벙커에 쓰이는 건물들은 인식을 못함. 다른 인식 방법 찾을필요
+        for i in self.state.units[0]:
+
+            if i.type in bunker_units:
+
+                if STATE_BUNKER[action][0] - 20 <= i.x <= STATE_BUNKER[action][0] + 20 and STATE_BUNKER[action][1] - 20 <= i.y <= STATE_BUNKER[action][1] + 20:
+                    print("$$", i.type, i.x, i.y)
+                    print('i build bunker')
+                    return True
+                else:
+                    pass
+            else:
+                pass
+        return False
+
+    def is_done(self):
+        if self.done is True:
+            self.obs = self._make_observation()
+            reward = self._compute_reward()
+            info = self._get_info()
+            self.obs_pre = self.obs
+
+            return self.obs, reward, self.done, info
+        else:
+            return [1,1,self.done,1]
 
     def empty_commands(self):
         # 돈없으면 기다리기
+        for i in self.state.frame.units[0]:
+            if i.type == 7:
+                if i.x == 184 and i.y == 124:
+                    self.test_timer +=1
+        if self.test_timer >= 2000:
+            while 1:
+                pass
         self.client.send([])
         print('skipped frame:', self.state.frame_from_bwapi, self.state.frame.resources[0].ore, self.state.frame.resources[0].gas, self.hydra_switch)
         self.state = self.client.recv()
         self.done = self._check_done()
         print(len(self.state.frame.units[1]))
-        for i in self.state.frame.units[1]:
-            print(i.type)
+        # for i in self.state.frame.units[1]:
+        #     print(i.type, i.x, i.y)
+        # print('---------------------------')
+
         if self.done is True:
             self.obs = self._make_observation()
             reward = self._compute_reward()
@@ -92,11 +129,11 @@ class StarCraftEnv(gym.Env):
             return [1,1,self.done,1]
 
     def _step(self, action):
-
         print('step start here')
         print(self.state.frame_from_bwapi)
         scv = None
         hydra = None
+        self.miss_action = 0
         self.episode_steps += 1
 
         #print('action:', action)
@@ -106,8 +143,8 @@ class StarCraftEnv(gym.Env):
             if temp[2] == True:
                 return temp
 
-# ----------------------------------------- 문제지점
-#
+# ----------------------------------------- 문제지점 (비정상 종료 나던 곳 이었던곳)
+
         if STATE_BUNKER[action][2] == 0:
             print('normal:', STATE_BUNKER[action], self.hydra_switch)
             while self.check_bunker_resources() is False:
@@ -121,18 +158,19 @@ class StarCraftEnv(gym.Env):
                 if temp[2] == True:
                     return temp
             self.next_action = ['bunker']
-            whattosend = self._make_commands(self.next_action, STATE_BUNKER[action][0],
+            whattosend_normal = self._make_commands(self.next_action, STATE_BUNKER[action][0],
                                              STATE_BUNKER[action][1])  # 위에서 조건에 따라 만들어진 action을 명령어로 제작
             self.number_of_action += 1
-            self.client.send(whattosend)
-            self.state = self.client.recv()
-            self.done = self._check_done()
-            while self.check_scv_working() is True:
-                temp = self.empty_commands()
-                print('7-1', temp)
+
+            while not self.check_bunker_build(action):
+                print('whattosend normal check_bunker', whattosend_normal)
+                self.client.send(whattosend_normal)
+                self.state = self.client.recv()
+                self.done = self._check_done()
+
+                temp = self.is_done()
                 if temp[2] == True:
                     return temp
-
 
         elif STATE_BUNKER[action][2] == 1:
             print('hero:', STATE_BUNKER[action], self.hydra_switch)
@@ -149,6 +187,10 @@ class StarCraftEnv(gym.Env):
                 self.client.send(whattosend)
                 self.state = self.client.recv()
                 self.pre_frame = self.state.frame_from_bwapi
+                temp = self.is_done()
+                if temp[2] == True:
+                    return temp
+
                 while self.pre_frame + 35 >= self.state.frame_from_bwapi:
                     temp = self.empty_commands()
                     print('5', temp)
@@ -164,11 +206,9 @@ class StarCraftEnv(gym.Env):
                     return temp
             while self.check_scv_working() is True:
                 temp = self.empty_commands()
-
                 for i in self.state.frame.units[0]:
                     if i.type == 7:
                         print('scv', i.x, i.y, i.idle)
-
                 print('7', temp)
                 if temp[2] == True:
                     return temp
@@ -177,29 +217,16 @@ class StarCraftEnv(gym.Env):
                                              STATE_BUNKER[action][1])  # 위에서 조건에 따라 만들어진 action을 명령어로 제작
             self.hydra_switch = 0
             self.number_of_action += 1
-            self.client.send(whattosend)
-            self.state = self.client.recv()
-            self.done = self._check_done()
-            self.pre_frame = self.state.frame_from_bwapi
-            while self.pre_frame + 20 >= self.state.frame_from_bwapi:
 
-                temp = self.empty_commands()
-                print('7-1', temp)
-                for i in self.state.frame.units[0]:
-                    if i.type == 7:
-                        print('scv', i.x, i.y, i.idle)
+            while not self.check_bunker_build(action):
+                print('whattosend check_bunker', whattosend)
+                self.client.send(whattosend)
+                self.state = self.client.recv()
+                self.done = self._check_done()
+
+                temp = self.is_done()
                 if temp[2] == True:
                     return temp
-
-            while self.check_scv_working() is True:
-                temp = self.empty_commands()
-                print('7-2', temp)
-                for i in self.state.frame.units[0]:
-                    if i.type == 7:
-                        print('scv', i.x, i.y, i.idle)
-                if temp[2] == True:
-                    return temp
-
 
         elif STATE_BUNKER[action][2] == 3 :  # 업그레이드할 때, scv가 일도중이면안되고, 업그레이드 도중이면안됨
             print('upgrade:', STATE_BUNKER[action])
@@ -286,10 +313,7 @@ class StarCraftEnv(gym.Env):
         # scv가 명령을 받아 벙커지으러 감, upgrade, lurker 모두 일정 시간이 요구됨.
         # scv가 idle이 아닌 상태면 명령 x
         # upgrade가 진행되는중이면 명령 x -> 5 frame?정도. action하고 upgrades_level이 바뀔때까지
-        # lurker -> 러커 변태도중 히드라 사라짐.  히드라 스위치 켜져있으면 action x
-        #
-
-
+        # lurker -> 러커 변태도중 히드라 사라짐.  히드라 스위치 켜져있으면 action
 
         self.obs = self._make_observation()
         reward = self._compute_reward()
@@ -355,6 +379,7 @@ class StarCraftEnv(gym.Env):
         self.number_of_action = 0
         self.next_action = []
         self.done = False
+        self.test_timer = 0
 
         return self.obs
 
