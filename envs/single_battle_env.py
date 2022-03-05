@@ -9,7 +9,10 @@ import TorchCraft.starcraft_gym.gym_utils as utils
 
 import torchcraft as tc
 import torchcraft.Constants as tcc
+# import starcraft_gym.envs.starcraft_env as sc
+# import torchcraft.Constants as tcc
 import TorchCraft.starcraft_gym.envs.starcraft_env as sc
+
 
 DISTANCE_FACTOR = 16
 # (x축, y축, z) z: 0: 일반벙커, 1: 영웅벙커, 2: 유니크 벙커 3: upgrade 4: pass
@@ -59,6 +62,8 @@ class SingleBattleEnv(sc.StarCraftEnv):
         self.first_bunker = 0
         self.scv_working = 0
         self.upgrading = 0
+        self.number_of_normal_bunker = 0
+        self.number_of_hero_bunker = 0
 
         super(SingleBattleEnv, self).__init__(server_ip, server_port, speed, frame_skip, self_play, max_episode_steps)
 
@@ -70,11 +75,11 @@ class SingleBattleEnv(sc.StarCraftEnv):
         return spaces.Discrete(self.number_of_state)
 
     def _observation_space(self):
-        obs_low  = [1,2,3,4,5,6,7,8]
-        obs_high  = [1,2,3,4,5,6,7,8]
+        obs_low  = [1,2,3,4,5,6,7,8,9,10] + [0] * 57
+        obs_high  = [1,2,3,4,5,6,7,8,9,10] + [0] * 57
         return spaces.Box(np.array(obs_low), np.array(obs_high))
 
-    def _make_commands(self, action, x, y):
+    def _make_commands(self, action, action_num):
         cmds = []
         scv = None
         engineeringbay = None
@@ -140,8 +145,9 @@ class SingleBattleEnv(sc.StarCraftEnv):
         elif action == ['bunker']:
             cmds.append([
                 tcc.command_unit_protected, scv_id,
-                tcc.unitcommandtypes.Build, -1, x, y,
+                tcc.unitcommandtypes.Build, -1, STATE_BUNKER[action_num][0], STATE_BUNKER[action_num][1],
                 tcc.unittypes.Terran_Supply_Depot])
+
         # if self.hydra_switch == 1 or self.unique_switch == 1:
         #     self.hydra_switch = 0
         #     self.unique_switch = 0
@@ -212,6 +218,7 @@ class SingleBattleEnv(sc.StarCraftEnv):
 
     def _make_observation(self):
         myself = None
+
         obs = np.zeros(self.observation_space.shape)
         lifes = 0
         lucks = 0
@@ -225,23 +232,6 @@ class SingleBattleEnv(sc.StarCraftEnv):
 
             if a.type == 218:
                 lucks += 1
-        # f = open('C:\starlog\log.txt', 'a')
-        self.countdown -= 1
-        if self.countdown == 0:
-            self.countdown += 1344
-            self.stage += 1
-            # f.write(str(self.state.frame_from_bwapi))
-            # f.write('\n')
-            # print('new_stage')
-            # f.write('new_stage\n')
-
-        # if self.state.units[1][-1].x == 76:
-        #     f.write(str(self.state.frame_from_bwapi))
-        #     f.write('\n')
-        #     print('appear')
-        #     f.write('appear\n')
-        #
-        # f.close()
 
         print('frame_from_bwapi:', self.state.frame_from_bwapi)
         print('countdown timer:', int((self.countdown/14) % int(1344/14)))
@@ -249,17 +239,24 @@ class SingleBattleEnv(sc.StarCraftEnv):
         for i in self.state.frame.units[0]:
             if i.type == 37:
                 lucks += 1
-        obs[0] = lifes  # 라이프
-        obs[1] = lucks  # 럭
-        obs[2] = self.state.frame.resources[0].ore  # 미네랄
-        obs[3] = self.state.frame.resources[0].gas # 가스
-        obs[4] = int((self.countdown/14) % int(1344/14))  # countdown
-        obs[5] = self.stage  # stage
-        obs[6] = self.curr_upgrade
-        obs[7] = self.miss_action
+
+        for i in range(57):
+            obs[i] = self.bunker_build_state[i]
+        obs[57+1] = lifes  # 라이프
+        obs[57+2] = lucks  # 럭
+        obs[57+3] = self.curr_upgrade
+        obs[57+4] = self.number_of_normal_bunker
+        obs[57+5] = self.number_of_hero_bunker
+        obs[57+6] = self.state.frame_from_bwapi / 100
+        # obs[57+7] = self.miss_action
+        obs[57+8] = self.state.frame.resources[0].ore / 100
+        obs[57+9] = self.state.frame.resources[0].gas / 100
 
 
         return obs
+# 가설1. 벙커수나 럭에 reward를 줘서 조절
+# 2.  오직 라이프, 승, 패, 잘못된 행동만 reward
+
 
     def _check_done(self):
         return bool(self.state.game_ended) or self.state.battle_just_ended  # state에 값을 넣는게 torchcraft에서도 맞는지
@@ -267,18 +264,19 @@ class SingleBattleEnv(sc.StarCraftEnv):
     def _compute_reward(self):  #보상 계산
         reward = 0
 
-        if self.obs_pre[0] > self.obs[0]:
+        if self.obs_pre[57+1] > self.obs[57+1]:     # 라이프 감소하면 -
             reward = -10
-        if self.obs_pre[0] == self.obs[0]:
-            reward = 1
-        if self.obs_pre[1] < self.obs[1]:
-            reward = 1
-        if self.obs[7] < 0:
-            reward = -50 * -self.obs[7]
+        if self.obs_pre[57+2] < self.obs[57+2]:           # 럭 증가하면 +
+            reward = 15
+        if self.obs_pre[57+6] < self.obs[57+6]:          # 오래 버틸수록 +
+            reward = 0.00001
+        # if self.obs[57+7] < 0:
+        #     reward = 20 * self.obs[57+7]
+        #     self.miss_action = 0
         if self._check_done() and not bool(self.state.battle_won):
-            reward = -500
+            reward = -100
         if self._check_done() and bool(self.state.battle_won):
-            reward = 1000
+            reward = 100
             self.episode_wins += 1
 
         return reward

@@ -3,8 +3,8 @@ import torchcraft as tc
 import torchcraft.Constants as tcc
 
 import TorchCraft.starcraft_gym.proto as proto
-import TorchCraft.starcraft_gym.gym_utils as utils
-
+import TorchCraft.starcraft_gym.gym_utils as utils # pycharm용
+# import starcraft_gym.gym_utils as utils  # cmd 용
 STATE_BUNKER = [(100,39,0), (112,39,0),(124,39,0),(136,39,0),(148,39,0)
                                                                ,(156, 47,0)
                 ,(100,55,0),(112,55,0),(124,55,0),(136,55,0),         (156, 55,0)
@@ -31,7 +31,8 @@ STATE_BUNKER = [(100,39,0), (112,39,0),(124,39,0),(136,39,0),(148,39,0)
                 ,(0,0,3)]
 
 
-bunker_units  = [125, 0, 1, 32]
+bunker_units = [125, 0, 1, 32]
+
 class StarCraftEnv(gym.Env):
     def __init__(self, server_ip, server_port, speed, frame_skip, self_play, max_episode_steps):
         print(len(STATE_BUNKER))
@@ -51,6 +52,7 @@ class StarCraftEnv(gym.Env):
 
         self.action_space = self._action_space()
         self.observation_space = self._observation_space()
+        self.bunker_build_state = [0] * 57
 
         self.state = None
         self.obs = None
@@ -74,21 +76,50 @@ class StarCraftEnv(gym.Env):
 
     def check_bunker_build(self, action):   # 지금은 영웅벙커만인데 노멀벙커에도 적용해야함 그 이후에는 지은 벙커들을 기억할때 판단용도로도
         # 몇몇 영웅벙커에 쓰이는 건물들은 인식을 못함. 다른 인식 방법 찾을필요
+
         for i in self.state.units[0]:
+            if STATE_BUNKER[action][0] == 168 and STATE_BUNKER[action][1] == 78:
+                if self.first_bunker == 0:
+                    if STATE_BUNKER[action][0] + 4 <= i.x <= STATE_BUNKER[action][0] + 7 and STATE_BUNKER[action][
+                        1] - 1 <= i.y <= STATE_BUNKER[action][1] + 1:
+                        print("&&", i.type, i.x, i.y)
+                        print('i build bunker')
 
-            if i.type in bunker_units:
+                        if STATE_BUNKER[action][2] == 0:  # 일반벙커
+                            self.bunker_build_state[action] = 1
+                        elif STATE_BUNKER[action][2] == 1:  # 영웅벙커
+                            self.bunker_build_state[action-57] = 2
 
-                if STATE_BUNKER[action][0] - 20 <= i.x <= STATE_BUNKER[action][0] + 20 and STATE_BUNKER[action][1] - 20 <= i.y <= STATE_BUNKER[action][1] + 20:
-                    print("$$", i.type, i.x, i.y)
-                    print('i build bunker')
+                        return True
+                    else:
+                        pass
+
+                elif self.first_bunker == 1:
                     return True
-                else:
-                    pass
+
+            # print("$$", i.type, i.x, i.y)
+            if i.type == tcc.unittypes.Terran_Supply_Depot:
+                if STATE_BUNKER[action][0] + 4 <= i.x <= STATE_BUNKER[action][0] + 7 and STATE_BUNKER[action][1] - 1 <= i.y <= STATE_BUNKER[action][1] + 1:
+                    print("&&", i.type, i.x, i.y)
+                    print('i build bunker')
+
+                    if STATE_BUNKER[action][2] == 0:  # 일반벙커
+                        self.bunker_build_state[action] = 1
+                    elif STATE_BUNKER[action][2] == 1:  # 영웅벙커
+                        self.bunker_build_state[action-57] = 2
+
+                    return True
+
             else:
                 pass
         return False
 
     def is_done(self):
+        self.countdown -= 1         # 흐른 시간 측정
+        if self.countdown == 0:
+            self.countdown += 1344
+            self.stage += 1
+
         if self.done is True:
             self.obs = self._make_observation()
             reward = self._compute_reward()
@@ -101,18 +132,11 @@ class StarCraftEnv(gym.Env):
 
     def empty_commands(self):
         # 돈없으면 기다리기
-        for i in self.state.frame.units[0]:
-            if i.type == 7:
-                if i.x == 184 and i.y == 124:
-                    self.test_timer +=1
-        if self.test_timer >= 2000:
-            while 1:
-                pass
         self.client.send([])
-        print('skipped frame:', self.state.frame_from_bwapi, self.state.frame.resources[0].ore, self.state.frame.resources[0].gas, self.hydra_switch)
+        # print('skipped frame:', self.state.frame_from_bwapi, self.state.frame.resources[0].ore, self.state.frame.resources[0].gas, self.hydra_switch)
         self.state = self.client.recv()
         self.done = self._check_done()
-        print(len(self.state.frame.units[1]))
+        # print(len(self.state.frame.units[1]))
         # for i in self.state.frame.units[1]:
         #     print(i.type, i.x, i.y)
         # print('---------------------------')
@@ -139,31 +163,28 @@ class StarCraftEnv(gym.Env):
         #print('action:', action)
         while self.state.frame_from_bwapi <= 100: # 80 프레임까지는 유닛이 초기화되지 않을 수 있으므로 대기
             temp = self.empty_commands()
-            print('1', temp)
+            # print('1', temp)
             if temp[2] == True:
                 return temp
-
-# ----------------------------------------- 문제지점 (비정상 종료 나던 곳 이었던곳)
 
         if STATE_BUNKER[action][2] == 0:
             print('normal:', STATE_BUNKER[action], self.hydra_switch)
             while self.check_bunker_resources() is False:
                 temp = self.empty_commands()
-                print('2', temp)
+                # print('2', temp)
                 if temp[2] == True:
                     return temp
             while self.check_scv_working() is True:
                 temp = self.empty_commands()
-                print('3', temp)
+                # print('3', temp)
                 if temp[2] == True:
                     return temp
             self.next_action = ['bunker']
-            whattosend_normal = self._make_commands(self.next_action, STATE_BUNKER[action][0],
-                                             STATE_BUNKER[action][1])  # 위에서 조건에 따라 만들어진 action을 명령어로 제작
+            whattosend_normal = self._make_commands(self.next_action, action)  # 위에서 조건에 따라 만들어진 action을 명령어로 제작
             self.number_of_action += 1
-
+            self.number_of_normal_bunker += 1
             while not self.check_bunker_build(action):
-                print('whattosend normal check_bunker', whattosend_normal)
+                # print('whattosend normal check_bunker', whattosend_normal)
                 self.client.send(whattosend_normal)
                 self.state = self.client.recv()
                 self.done = self._check_done()
@@ -172,17 +193,18 @@ class StarCraftEnv(gym.Env):
                 if temp[2] == True:
                     return temp
 
+
+
         elif STATE_BUNKER[action][2] == 1:
             print('hero:', STATE_BUNKER[action], self.hydra_switch)
             while self.hydra_switch == 0:
                 while self.check_hero_resources() is False:
                     temp = self.empty_commands()
-                    print('4', temp)
+                    # print('4', temp)
                     if temp[2] == True:
                         return temp
                 self.next_action = ['hydra']
-                whattosend = self._make_commands(self.next_action, STATE_BUNKER[action][0],
-                                                 STATE_BUNKER[action][1])  # 위에서 조건에 따라 만들어진 action을 명령어로 제작
+                whattosend = self._make_commands(self.next_action,action)  # 위에서 조건에 따라 만들어진 action을 명령어로 제작
                 self.number_of_action += 1
                 self.client.send(whattosend)
                 self.state = self.client.recv()
@@ -193,7 +215,7 @@ class StarCraftEnv(gym.Env):
 
                 while self.pre_frame + 35 >= self.state.frame_from_bwapi:
                     temp = self.empty_commands()
-                    print('5', temp)
+                    # print('5', temp)
                     if temp[2] == True:
                         return temp
 
@@ -201,56 +223,64 @@ class StarCraftEnv(gym.Env):
 
             while self.check_bunker_resources() is False:
                 temp = self.empty_commands()
-                print('6', temp)
+                # print('6', temp)
                 if temp[2] == True:
                     return temp
             while self.check_scv_working() is True:
                 temp = self.empty_commands()
-                for i in self.state.frame.units[0]:
-                    if i.type == 7:
-                        print('scv', i.x, i.y, i.idle)
-                print('7', temp)
+                # for i in self.state.frame.units[0]:
+                #     if i.type == 7:
+                #         print('scv', i.x, i.y, i.idle)
+                # print('7', temp)
                 if temp[2] == True:
                     return temp
             self.next_action = ['bunker']
-            whattosend = self._make_commands(self.next_action, STATE_BUNKER[action][0],
-                                             STATE_BUNKER[action][1])  # 위에서 조건에 따라 만들어진 action을 명령어로 제작
+            whattosend = self._make_commands(self.next_action, action)  # 위에서 조건에 따라 만들어진 action을 명령어로 제작
             self.hydra_switch = 0
             self.number_of_action += 1
+            self.number_of_hero_bunker += 1
 
             while not self.check_bunker_build(action):
-                print('whattosend check_bunker', whattosend)
+                # print('whattosend check_bunker', whattosend)
                 self.client.send(whattosend)
                 self.state = self.client.recv()
                 self.done = self._check_done()
-
+                self.pre_frame = self.state.frame_from_bwapi
                 temp = self.is_done()
                 if temp[2] == True:
                     return temp
+
+            while self.pre_frame + 26 >= self.state.frame_from_bwapi:
+                temp = self.empty_commands()
+                # print('15', temp)
+                if temp[2] == True:
+                    return temp
+
+
+
 
         elif STATE_BUNKER[action][2] == 3 :  # 업그레이드할 때, scv가 일도중이면안되고, 업그레이드 도중이면안됨
             print('upgrade:', STATE_BUNKER[action])
             while self.check_upgrade_resources() == False:  # 돈있는지
                 temp = self.empty_commands()
-                print('8', temp)
+                # print('8', temp)
                 if temp[2] == True:
                     return temp
             self.next_action = ['upgrade']
-            whattosend = self._make_commands(self.next_action, STATE_BUNKER[action][0],
-                                             STATE_BUNKER[action][1])  # 위에서 조건에 따라 만들어진 action을 명령어로 제작
+            whattosend = self._make_commands(self.next_action, action)  # 위에서 조건에 따라 만들어진 action을 명령어로 제작
             self.number_of_action += 1
             self.client.send(whattosend)
             self.state = self.client.recv()
             self.pre_frame = self.state.frame_from_bwapi
             while self.pre_frame + 20 >= self.state.frame_from_bwapi:
                 temp = self.empty_commands()
-                print('9', temp)
+                # print('9', temp)
                 if temp[2] == True:
                     return temp
 
         else:
             temp = self.empty_commands()
-            print('10', temp)
+            # print('10', temp)
             if temp[2] == True:
                 return temp
 
@@ -306,14 +336,9 @@ class StarCraftEnv(gym.Env):
 
         while self.check_scv_working() is True:
             temp = self.empty_commands()
-            print('11', temp)
+            # print('11', temp)
             if temp[2] == True:
                 return temp
-
-        # scv가 명령을 받아 벙커지으러 감, upgrade, lurker 모두 일정 시간이 요구됨.
-        # scv가 idle이 아닌 상태면 명령 x
-        # upgrade가 진행되는중이면 명령 x -> 5 frame?정도. action하고 upgrades_level이 바뀔때까지
-        # lurker -> 러커 변태도중 히드라 사라짐.  히드라 스위치 켜져있으면 action
 
         self.obs = self._make_observation()
         reward = self._compute_reward()
@@ -321,14 +346,11 @@ class StarCraftEnv(gym.Env):
         self.obs_pre = self.obs
         self.upgrade_pre = self.state.frame.resources[0].upgrades_level
         print('is done:', self.done)
+
         return self.obs, reward, self.done, info
 
     def _reset(self):
-        print('---------------------------------')
-        yy = open('C:\starlog\log_action.txt', 'a')
-        yy.write('---------------------------------')
-        yy.write('\n')
-        yy.close()
+
         utils.print_progress(self.episodes, self.episode_wins)
 #        print(not self.self_play, self.episode_steps == self.max_episode_steps)
         if not self.self_play and self.episode_steps == self.max_episode_steps:  # 종료
@@ -379,7 +401,9 @@ class StarCraftEnv(gym.Env):
         self.number_of_action = 0
         self.next_action = []
         self.done = False
-        self.test_timer = 0
+        self.bunker_build_state = [0] * 57
+        self.number_of_normal_bunker = 0
+        self.number_of_hero_bunker = 0
 
         return self.obs
 
@@ -391,7 +415,7 @@ class StarCraftEnv(gym.Env):
         def _observation_space(self):
             raise NotImplementedError
 
-        def _make_commands(self, action,x,y):
+        def _make_commands(self, action, action_num):
             raise NotImplementedError
 
         def _make_observation(self):
