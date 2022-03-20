@@ -1,0 +1,1 @@
+from TorchCraft.starcraft_gym.core.common.agent import Agent
