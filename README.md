@@ -27,5 +27,8 @@
 ##
 
 ####  환경 설정 및 구조
-
+- BWAPI
+- Torchcraft
+- Agent
 ![image](https://user-images.githubusercontent.com/19571027/159266080-844e7d50-e479-4fa2-adbe-f26aa9cd9aa9.png)
+
