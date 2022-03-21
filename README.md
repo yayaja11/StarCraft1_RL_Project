@@ -107,9 +107,9 @@ Starcraft ~ BWAPI ~ Torchcraft ~ Agent
     - 복잡한 보상 체계 대신 오래버티면 더 높은 점수 부여
     - -> 성공적으로 학습
 
-### 결과
+### 현재까지 결과
   - 50판중 22회 클리어
-  - 평균 32스테이지 클리어
+  - 총 35스테이지 중 평균 32스테이지 클리어
   - 그래프 추가 예정
 
    [saida]: <https://github.com/TeamSAIDA/SAIDA_RL>
