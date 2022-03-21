@@ -52,12 +52,12 @@
 ###  환경 설정 및 구조
 
 ##### 환경 설정
-윈도우 10
-파이썬 3.6
-BWAPI 4.2
-Torchcraft 3.6
-Gym Environment
-GTX970 SUPERJET
+- 윈도우 10
+- 파이썬 3.6
+- BWAPI 4.2
+- Torchcraft 3.6
+- Gym Environment
+- GTX970 SUPERJET
 
 ##### 환경 구조
 Starcraft ~ BWAPI ~ Torchcraft ~ Agent
