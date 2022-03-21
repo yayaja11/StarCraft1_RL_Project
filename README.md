@@ -46,8 +46,9 @@
 
 ![Brood-War-2022-03-21-22-43-56](https://user-images.githubusercontent.com/19571027/159280610-f2e81cc5-50de-44ec-93e3-c890538f4ef3.gif)
 #### -> 26스테이지 사망
-
+##
+##
 ![2](https://user-images.githubusercontent.com/19571027/159283649-370b0cab-39a2-41cf-9af1-7fa236118888.gif)
 #### -> 21스테이지 사망
-
-##### 
+##
+- 여러판을 플레이해본 결과 본인(고수)을 제외한 클리어율은 약 10% 
