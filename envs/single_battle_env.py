@@ -51,26 +51,15 @@ class SingleBattleEnv(sc.StarCraftEnv):
     def __init__(self, server_ip, server_port, speed=0, frame_skip=0, self_play = False, max_episode_steps = 2000):
         # speed 60= 1000프레임을 60초동안. 1=1000프레임을 1초동안 아닌듯 1~6가는데 빨라짐
         self.speed = speed
-        self.countdown = 806
-        self.stage = 0
-        self.over28stage = 0
-        self.hero_bunker = 0
-        self.unique_bunker = 0
-        self.action_save = 0  # action저장하고 돈쌓일때까지 기다릴때
         self.curr_upgrade = 0
         self.miss_action = 0
         self.hydra_switch = 0
-        self.unique_switch = 0
-        self.unique_exception = 0
         self.post_action = []
-        self.first_bunker = 0
         self.scv_working = 0
-        self.upgrading = 0
         self.number_of_normal_bunker = 0
         self.number_of_hero_bunker = 0
 
         super(SingleBattleEnv, self).__init__(server_ip, server_port, speed, frame_skip, self_play, max_episode_steps)
-
 
     def _action_space(self):
 
@@ -105,21 +94,7 @@ class SingleBattleEnv(sc.StarCraftEnv):
         engineeringbay = None
         hydra = None
         larva = None
-        #
-        # if self.state is None or action is None:
-        #     return cmds
-        # if self.state.units == {}:  # 아무 유닛도 아직 없을때 처리
-        #     return cmds
 
-        # object_methods = [method_name for method_name in dir(self.state.frame.resources[0])]  # state하위 모든 메쏘드
-        # for i in object_methods:
-        #     a = [c for c in dir(i)]
-        #     print('1', a)
-        # print('1',type(self.state.frame.resources[0]))
-        # print('2',self.state.frame.resources[0])
-
-        # print('mineral:',self.state.units[0][0].id)
-        # if self.state.frame.resources[0].ore >= 100: #  state안에 뭐있는지 궁금할때
         for a in self.state.units[0]:
 
             if a.type == 7:
@@ -142,8 +117,6 @@ class SingleBattleEnv(sc.StarCraftEnv):
                 supply_id = a.id
                 supply = a
 
-        # print('action:', action)
-        # print(self.hydra_switch, action)
         if action == ['hydra']:
             try:
                 print('action:', action)
@@ -164,21 +137,14 @@ class SingleBattleEnv(sc.StarCraftEnv):
                 tcc.unitcommandtypes.Cancel_Construction, -1, -1, -1, -1])
 
         elif action == ['upgrade']:
-
-
             cmds.append([
                 tcc.command_unit, engineeringbay_id,
                 tcc.unitcommandtypes.Upgrade, -1, -1,-1, tcc.upgradetypes.Terran_Infantry_Weapons])
-
-            # cmds.append([
-            #     tcc.command_unit_protected, engineeringbay_id,
-            #     tcc.unitcommandtypes.Upgrade, 1, 1, 1, tcc.upgradetypes.Terran_Infantry_Weapons])
 
         elif action == ['upgrade_cancel']:
             cmds.append([
                 tcc.command_unit_protected, engineeringbay_id,
                 tcc.unitcommandtypes.Cancel_Upgrade, -1 , -1, -1 , tcc.upgradetypes.Terran_Infantry_Weapons])
-
 
         elif action == ['bunker']:
             cmds.append([
@@ -198,7 +164,6 @@ class SingleBattleEnv(sc.StarCraftEnv):
             return obs
 
         for a in self.state.units[0]:
-            # print(a.x, a.y)
             if a.type == 13:
                 lifes += 1
 
@@ -206,7 +171,6 @@ class SingleBattleEnv(sc.StarCraftEnv):
                 lucks += 1
 
         print('frame_from_bwapi:', self.state.frame_from_bwapi)
-        # print('countdown timer:', int((self.countdown/14) % int(1344/14)))
         lucks = 0
         for i in self.state.frame.units[0]:
             if i.type == 37:
@@ -225,12 +189,7 @@ class SingleBattleEnv(sc.StarCraftEnv):
         obs[57+9] = self.state.frame.resources[0].gas / 1000
 
         self.miss_action = 0
-
-
         return obs
-# 가설1. 벙커수나 럭에 reward를 줘서 조절
-# 2.  오직 라이프, 승, 패, 잘못된 행동만 reward
-
 
     def _check_done(self):
         return bool(self.state.game_ended) or self.state.battle_just_ended  # state에 값을 넣는게 torchcraft에서도 맞는지
@@ -284,9 +243,6 @@ class SingleBattleEnv(sc.StarCraftEnv):
                 reward = 0
             reward += 2 * diff
             # reward += self.luck_funct(self.obs[57+6]/5) * diff
-        # if self.fung == 1:            # 일단 빼보기. 발생확률이 적어 영향력도 낮고 학습할 수 있을지도 애매함
-        #     reward -= 10
-        #     self.fung = 0
         # if self.obs_pre[57+6] < self.obs[57+6]:          # 오래 버틸수록 + -> start_test에서
         #     reward = 0.00001
         # if self.obs[57+7] < 0:
@@ -298,16 +254,13 @@ class SingleBattleEnv(sc.StarCraftEnv):
         if self._check_done() and bool(self.state.battle_won):
             reward += 0
             self.episode_wins += 1
-
         return reward
-
 
     def check_normal_resources(self):
         if self.state.frame.resources[0].ore >= 1000:
             return True
         else:
             return False
-
 
     def check_hero_resources(self):
         if self.state.frame.resources[0].ore >= 1000 and self.state.frame.resources[0].gas >= 1000:
@@ -320,12 +273,6 @@ class SingleBattleEnv(sc.StarCraftEnv):
             return True
         else:
             return False
-    #
-    # def check_unique_resources(self):
-    #     if self.state.frame.resources[0].ore >= 300:
-    #         return True
-    #     else:
-    #         return False
 
     def check_upgrade_resources(self):
         #if self.state.frame.resources[0].ore >= (self.curr_upgrade * 100):

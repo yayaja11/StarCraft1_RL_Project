@@ -7,22 +7,15 @@ import math
 
 import time
 import torch
-import datetime
-import os
 import tensorflow as tf
 gpus = tf.config.experimental.list_physical_devices('GPU')
 for gpu in gpus:
   tf.config.experimental.set_memory_growth(gpu, True)
-import keras.backend as Kb
 from keras.layers import Dense
 from keras.optimizers import Adam
 from keras.models import Model
-import keras.optimizers as optimizers
 import numpy as np
 np.set_printoptions(threshold=np.inf, linewidth=np.inf)
-
-from tqdm import tqdm
-from gym import spaces
 
 DISCOUNT_FACTOR = 0.99
 ENABLE_DOUBLE = False
@@ -115,7 +108,6 @@ class RandomAgent(object):
         if np.random.random() <= self.EPSILON:
             while 1:
                 print('@@ random', self.EPSILON)
-                print(temp_mask)
                 pick = self.env.action_space.sample()
                 if temp_mask[pick] == 1:
                     pass
@@ -126,12 +118,7 @@ class RandomAgent(object):
         else:
             qs = self.dqn(tf.convert_to_tensor([state], dtype=tf.float32))
             np_tensor = qs.numpy()
-            # print('@@\n',np_tensor[0])
-            # print('@@\n',temp_mask)
-            # print('@@\n',len(np_tensor[0]))
-            # print('@@\n',len(temp_mask))
-
-            qs = tf.where(temp_mask, -100.0, np_tensor)
+            qs = tf.where(temp_mask, -100.0, np_tensor)     # masking
             print(qs)
             print(np.argmax(qs.numpy()))
             return np.argmax(qs.numpy())
@@ -184,8 +171,6 @@ class RandomAgent(object):
 
             while not done:
                 steps += 1
-                # temp = 0        # 중복 replay buffer에 걸러서 넣기 위함
-
                 action = self.choose_action(state)
                 if action == 0 or action == 57:
                     pass
@@ -251,38 +236,6 @@ class RandomAgent(object):
             save_name = './random_bunkerh5/no_reward' + str(now.tm_mon) + str(now.tm_mday) + str(now.tm_hour) + str(now.tm_min) + str(now.tm_sec) + '.h5'
             self.dqn.save_weights(save_name)
 
-    # def act(self):
-    #         # while 1:  # 임시로 유니크 타워 2개지으면 해당 action 하지않도록하고 rl로 학습할 땐 3개지으려할때 패널티를줘서 안짓게 뭐가 좋을지 고민 # 유니크는 10라운드이후부터
-    #         # 시작되는 특수한 상황이라 네트워크를 두개써야할 수 있음 일단 영웅벙커까지만.
-    #         # if self.post_action == False:
-    #         #     action_t = 115
-    #
-    #         action_t = self.forward(obs)  # action 확률기반 선택을 넣을 곳
-    #         print('action', action_t, old_actions)
-    #         reward = 0.1
-    #         self.backward(reward, terminal=True)
-    #         # action_t = myaction.pop()
-    #         while action_t in old_actions:      # 중복장소에 짓는것 방지. 여기서 처리하는 이유는 환경에서하면 scv가 일을 안하는 이유를 알아야하는데 버그/중복/대기상태 를 특정할 수 가 없음
-    #
-    #             action_t = self.forward(obs)
-    #             self.miss_action -= 1
-    #             reward = -100
-    #             self.backward(reward, terminal = True)
-    #
-    #         # self.episode_reward += reward  # 이거 필요
-    #
-    #         old_actions.append(action_t)
-    #         if action_t == 114:
-    #             pass
-    #         elif action_t >= 57 and action_t < 114:
-    #             print(action_t - 57)
-    #             old_actions.append(action_t - 57)
-    #         elif action_t < 57:
-    #             print(action_t + 57)
-    #             old_actions.append(action_t + 57)
-    #
-    #         return action_t
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--ip', help = 'server ip')
@@ -302,22 +255,3 @@ if __name__ == '__main__':
     agent = RandomAgent(env, state_size, action_size)
     # agent.load_weights('./')
     agent.train(max_episode_num)
-
-    #
-    #
-    # while episodes < 150:
-    #     old_actions = []
-    #     obs = env._reset()
-    #     done = False
-    #
-    #     # for _ in tqdm(range(1000)):
-    #     while not done:
-    #         action = agent.act()
-    #         obs, reward, done, info = env._step(action)
-
-        # episodes += 1
-    #     if done:
-    #         agent.forward(obs)
-    #         agent.backward(0., terminal=False)
-    #
-    # env.close()
