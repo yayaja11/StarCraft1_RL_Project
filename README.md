@@ -80,3 +80,9 @@ Starcraft ~ BWAPI ~ Torchcraft ~ Agent
   - 유즈맵은 맵개발자 임의로 건물의 가격을 조정가능. 하지만 BWAPI는 건물 건설이 가능하더라도 사용자의 자원이 default 가격에 미치지 못하면 아무런 행동도 하지 않음
     - 맵 수정을 통해 전체 금액 상승
 
+
+
+
+   [saida]: <https://github.com/TeamSAIDA/SAIDA_RL>
+   [torch]: <https://github.com/TorchCraft/TorchCraft>
+   [bwapi]: <https://github.com/bwapi/bwapi>
