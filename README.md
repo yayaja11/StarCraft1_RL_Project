@@ -30,7 +30,8 @@
 - BWAPI
 - Torchcraft
 - Agent
-![title](https://user-images.githubusercontent.com/19571027/159266080-844e7d50-e479-4fa2-adbe-f26aa9cd9aa9.png){: width="100" height="100"}
+![image](https://user-images.githubusercontent.com/19571027/159266080-844e7d50-e479-4fa2-adbe-f26aa9cd9aa9.png){: width="100" height="100"}
+<img src="https://user-images.githubusercontent.com/19571027/159266080-844e7d50-e479-4fa2-adbe-f26aa9cd9aa9.png" width="100" height="100"/>
 
 #### 환경 설계 
 - 무엇을 풀 것인가? 
