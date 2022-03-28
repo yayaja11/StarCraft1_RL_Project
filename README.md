@@ -115,10 +115,11 @@ Starcraft ~ BWAPI ~ Torchcraft ~ Agent
 ![image](https://user-images.githubusercontent.com/19571027/160402835-de091e9b-1c79-4d05-83dc-14a3d3e22383.png)
   - 붉은색 선: 클리어 점수
   - 푸른색 선: 점수
-  - 점점 게임 실력이 향상(35스테이지중 평균 30스테이지 클리어)
+  - 점점 게임 실력이 향상되는 그래프
+  - 최종적으로 35스테이지중 평균 30스테이지 클리어
 
 - 클리어 확률
-  - 최대 10판중 7판 클리어 (70%)
+  - 최대 10게임중 7게임 클리어 (70%)
 ![image](https://user-images.githubusercontent.com/19571027/160403304-da319f67-497c-4e83-85c3-152fe33819ea.png)
 
 
