@@ -118,8 +118,9 @@ Starcraft ~ BWAPI ~ Torchcraft ~ Agent
   - 점점 게임 실력이 향상(35스테이지중 평균 30스테이지 클리어)
 
 - 클리어 확률
-![image](https://user-images.githubusercontent.com/19571027/160403304-da319f67-497c-4e83-85c3-152fe33819ea.png)
   - 최대 10판중 7판 클리어 (70%)
+![image](https://user-images.githubusercontent.com/19571027/160403304-da319f67-497c-4e83-85c3-152fe33819ea.png)
+
 
 - 최소 행운으로 클리어한 게임(운이 중요한 요소임에도 불구하고 실력으로 깼다는 의미)
   - 게임을 클리어한 게임의 평균 행운은 약 34
