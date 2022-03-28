@@ -113,8 +113,10 @@ Starcraft ~ BWAPI ~ Torchcraft ~ Agent
   
 - 그래프
 ![image](https://user-images.githubusercontent.com/19571027/160402835-de091e9b-1c79-4d05-83dc-14a3d3e22383.png)
+  - 붉은색 선: 클리어 점수
+  - 푸른색 선: 점수
   - 20판 평균 점수(버틴 시간)
-  - 100에포크에 가까워질수록 오래 버팀(35스테이지중 평균 30스테이지 클리어)
+  - 2000에포크에 가까워질수록 오래 버팀(35스테이지중 평균 30스테이지 클리어)
 
 - 클리어 확률
 ![image](https://user-images.githubusercontent.com/19571027/160403304-da319f67-497c-4e83-85c3-152fe33819ea.png)
