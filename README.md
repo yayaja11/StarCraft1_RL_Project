@@ -110,9 +110,20 @@ Starcraft ~ BWAPI ~ Torchcraft ~ Agent
     - -> 성공적으로 학습
 
 ### 현재까지 결과
-  - 50판중 22회 클리어
-  - 총 35스테이지 중 평균 32스테이지 클리어
-  - 그래프 추가 예정
+  
+- 그래프
+![image](https://user-images.githubusercontent.com/19571027/160402835-de091e9b-1c79-4d05-83dc-14a3d3e22383.png)
+  - 20판 평균 점수(버틴 시간)
+  - 100에포크에 가까워질수록 오래 버팀(35스테이지중 평균 30스테이지 클리어)
+
+- 클리어 확률
+![image](https://user-images.githubusercontent.com/19571027/160403304-da319f67-497c-4e83-85c3-152fe33819ea.png)
+  - 최대 10판중 7판 클리어 (70%)
+
+- 최소 행운으로 클리어한 게임(운이 중요한 요소임에도 불구하고 실력으로 깼다는 의미)
+- 
+
+
 
    [saida]: <https://github.com/TeamSAIDA/SAIDA_RL>
    [torch]: <https://github.com/TorchCraft/TorchCraft>
