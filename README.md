@@ -1,6 +1,6 @@
 # Starcraft1 RL Project "Random Bunker Defense" 
 
-##### 시작에 앞서, 본 프로젝트는 [TorchCraft][torch], [BWAPI][bwapi], [SAIDA][saida]의 코드를 참고하여 만들어졌습니다. 
+##### 시작에 앞서, 본 프로젝트는 [TorchCraft][torch], [BWAPI][bwapi], [SAIDA][saida], [web1][세인트워터멜론]의 코드를 참고하여 만들어졌습니다. 
 
 ##
 
@@ -155,3 +155,5 @@ Starcraft ~ BWAPI ~ Torchcraft ~ Agent
    [saida]: <https://github.com/TeamSAIDA/SAIDA_RL>
    [torch]: <https://github.com/TorchCraft/TorchCraft>
    [bwapi]: <https://github.com/bwapi/bwapi>
+   [web1]: <https://pasus.tistory.com/133>
+
