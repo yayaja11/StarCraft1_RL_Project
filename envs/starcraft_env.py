@@ -2,36 +2,7 @@ import gym
 import torchcraft as tc
 import torchcraft.Constants as tcc
 import time
-# import TorchCraft.starcraft_gym.proto as proto
-# import TorchCraft.starcraft_gym.gym_utils as utils # pycharm용
-import starcraft_gym.proto as proto
-import starcraft_gym.gym_utils as utils # pycharm용
-# import starcraft_gym.gym_utils as utils  # cmd 용
-STATE_BUNKER = [(0,0,3), (112,39,0),(124,39,0),(136,39,0),(148,39,0)
-                                                               ,(156, 47,0)
-                ,(100,55,0),(112,55,0),(124,55,0),(136,55,0),         (156, 55,0)
-        ,(88,63,0),(100,63,0),(112,63,0),(124,63,0),(136,63,0),         (156, 63,0),(168,63,0)
-,(80,71,0)
-,(80,79,0),       (100, 79,0),(112,79,0),(124,79,0),(136,79,0),         (156, 79,0),(168,78,0)
-,(80,87,0),       (100, 87,0),(112,87,0),(124,87,0),(136,87,0),         (156, 87,0),(168,87,0)
-,(80,95,0),       (100, 95,0),(112,95,0),(124,95,0),(136,95,0),         (156, 95,0),(168,95,0)
-,(80,103,0),      (100, 103,0),(112,103,0),(124,103,0),(136,103,0),     (156, 103,0),(168,103,0)
-,(80,111,0),                                                            (156, 111,0),(168,111,0)
-    ,(84,119,0),(96,119,0),(108,119,0),(120,119,0),(132,119,0),(144,119,0),(156,119,0)
-                ,
-                (0,0,3), (112,39,1),(124,39,1),(136,39,1),(148,39,1)
-                                                               ,(156, 47,1)
-                ,(100,55,1),(112,55,1),(124,55,1),(136,55,1),         (156, 55,1)
-        ,(88,63,1),(100,63,1),(112,63,1),(124,63,1),(136,63,1),         (156, 63,1),(168,63,1)
-,(80,71,1)
-,(80,79,1),       (100, 79,1),(112,79,1),(124,79,1),(136,79,1),         (156, 79,1),(168,78,1)
-,(80,87,1),       (100, 87,1),(112,87,1),(124,87,1),(136,87,1),         (156, 87,1),(168,87,1)
-,(80,95,1),       (100, 95,1),(112,95,1),(124,95,1),(136,95,1),         (156, 95,1),(168,95,1)
-,(80,103,1),      (100, 103,1),(112,103,1),(124,103,1),(136,103,1),     (156, 103,1),(168,103,1)
-,(80,111,1),                                                            (156, 111,1),(168,111,1)
-    ,(84,119,1),(96,119,1),(108,119,1),(120,119,1),(132,119,1),(144,119,1),(156,119,1)
-                ,(0,0,3),(0,0,3),(0,0,3)]
-
+import bunker_map as bm
 
 bunker_units = [125, 0, 1, 32]
 
@@ -61,6 +32,10 @@ class StarCraftEnv(gym.Env):
 
     def __del__(self):
         self.client.close()
+
+    def print_progress(self, episodes, wins):
+        print("Episodes: %4d | Wins: %4d | WinRate: %1.3f" % (
+            episodes, wins, wins / (episodes + 1E-6)))
 
     def check_scv_working(self):
         for i in self.state.units[0]:
@@ -103,10 +78,10 @@ class StarCraftEnv(gym.Env):
                     self.fung = 1
                     self.hydra_switch = 1
 
-                if STATE_BUNKER[action][0] + 2 <= i.x <= STATE_BUNKER[action][0] + 8 and STATE_BUNKER[action][1] - 4 <= i.y <= STATE_BUNKER[action][1] + 3: # 건물이 지어지는 위치가 여러 좌표에 겹쳐 있음.
-                    if STATE_BUNKER[action][2] == 0:  # 일반벙커
+                if bm.STATE_BUNKER[action][0] + 2 <= i.x <= bm.STATE_BUNKER[action][0] + 8 and bm.STATE_BUNKER[action][1] - 4 <= i.y <= bm.STATE_BUNKER[action][1] + 3: # 건물이 지어지는 위치가 여러 좌표에 겹쳐 있음.
+                    if bm.STATE_BUNKER[action][2] == 0:  # 일반벙커
                         self.bunker_build_state[action] = 1
-                    elif STATE_BUNKER[action][2] == 1:  # 영웅벙커
+                    elif bm.STATE_BUNKER[action][2] == 1:  # 영웅벙커
                         self.bunker_build_state[action-57] = 2
                     self.unbuild_count = 0
                     return True
@@ -177,8 +152,8 @@ class StarCraftEnv(gym.Env):
             if temp[2] == True:
                 return temp
 
-        if STATE_BUNKER[action][2] == 0:
-            print('normal:', STATE_BUNKER[action], self.hydra_switch)
+        if bm.STATE_BUNKER[action][2] == 0:
+            print('normal:', bm.STATE_BUNKER[action], self.hydra_switch)
             while self.check_bunker_resources() is False:
                 temp = self.empty_commands()
                 if temp[2] == True:
@@ -209,8 +184,8 @@ class StarCraftEnv(gym.Env):
                 if temp[2] == True:
                     return temp
 
-        elif STATE_BUNKER[action][2] == 1:
-            print('hero:', STATE_BUNKER[action], self.hydra_switch)
+        elif bm.STATE_BUNKER[action][2] == 1:
+            print('hero:', bm.STATE_BUNKER[action], self.hydra_switch)
             while self.hydra_switch == 0:
                 while self.check_hero_resources() is False:
                     temp = self.empty_commands()
@@ -271,8 +246,8 @@ class StarCraftEnv(gym.Env):
                 if temp[2] == True:
                     return temp
 
-        elif STATE_BUNKER[action][2] == 3:
-            print('upgrade:', STATE_BUNKER[action])
+        elif bm.STATE_BUNKER[action][2] == 3:
+            print('upgrade:', bm.STATE_BUNKER[action])
             for i in self.state.frame.units[0]:
                 if i.type == 0:
                     self.post_marineDMG = i.groundATK
@@ -286,7 +261,6 @@ class StarCraftEnv(gym.Env):
             self.number_of_action += 1
             while self.post_marineDMG == self.now_marineDMG:
                 whattosend = self._make_commands(self.next_action, action)  # 위에서 조건에 따라 만들어진 action을 명령어로 제작
-                print(self.state.frame_from_bwapi)
                 self.client.send(whattosend)
                 self.state = self.client.recv()
                 self.done = self._check_done()
@@ -315,7 +289,7 @@ class StarCraftEnv(gym.Env):
             if temp[2] == True:
                 return temp
 
-        while self.check_scv_working() is True and STATE_BUNKER[action][2] != 3:
+        while self.check_scv_working() is True and bm.STATE_BUNKER[action][2] != 3:
             temp = self.empty_commands()
             if temp[2] == True:
                 return temp
@@ -329,7 +303,7 @@ class StarCraftEnv(gym.Env):
         return self.obs, reward, self.done, info
 
     def _reset(self):
-        utils.print_progress(self.episodes, self.episode_wins)
+        self.print_progress(self.episodes, self.episode_wins)
         if not self.self_play and self.episode_steps == self.max_episode_steps:  # 종료
             print('step reach max')
             print([tcc.restart])

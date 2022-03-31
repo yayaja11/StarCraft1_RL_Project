@@ -1,8 +1,7 @@
 import argparse
-# import TorchCraft.starcraft_gym.envs.single_battle_env as sc
-import starcraft_gym.envs.single_battle_env as sc
-# from TorchCraft.starcraft_gym.core.common.replaybuffer import ReplayBuffer
-from starcraft_gym.core.common.replaybuffer import ReplayBuffer
+import envs.single_battle_env as sc
+from core.common.replaybuffer import ReplayBuffer
+import bunker_map as bm
 import math
 
 import time
@@ -26,32 +25,6 @@ LEARNING_RATE = 0.0005
 TARGET_MODEL_UPDATE_INTERVAL = 100
 WINDOW_LENGTH=1
 MAX_STEP_CNT = 3000000
-
-
-STATE_BUNKER = [(0,0,3), (112,39,0),(124,39,0),(136,39,0),(148,39,0)
-                                                               ,(156, 47,0)
-                ,(100,55,0),(112,55,0),(124,55,0),(136,55,0),         (156, 55,0)
-        ,(88,63,0),(100,63,0),(112,63,0),(124,63,0),(136,63,0),         (156, 63,0),(168,63,0)
-,(80,71,0)
-,(80,79,0),       (100, 79,0),(112,79,0),(124,79,0),(136,79,0),         (156, 79,0),(168,78,0)
-,(80,87,0),       (100, 87,0),(112,87,0),(124,87,0),(136,87,0),         (156, 87,0),(168,87,0)
-,(80,95,0),       (100, 95,0),(112,95,0),(124,95,0),(136,95,0),         (156, 95,0),(168,95,0)
-,(80,103,0),      (100, 103,0),(112,103,0),(124,103,0),(136,103,0),     (156, 103,0),(168,103,0)
-,(80,111,0),                                                            (156, 111,0),(168,111,0)
-    ,(84,119,0),(96,119,0),(108,119,0),(120,119,0),(132,119,0),(144,119,0),(156,119,0)
-                ,
-                (0,0,3), (112,39,1),(124,39,1),(136,39,1),(148,39,1)
-                                                               ,(156, 47,1)
-                ,(100,55,1),(112,55,1),(124,55,1),(136,55,1),         (156, 55,1)
-        ,(88,63,1),(100,63,1),(112,63,1),(124,63,1),(136,63,1),         (156, 63,1),(168,63,1)
-,(80,71,1)
-,(80,79,1),       (100, 79,1),(112,79,1),(124,79,1),(136,79,1),         (156, 79,1),(168,78,1)
-,(80,87,1),       (100, 87,1),(112,87,1),(124,87,1),(136,87,1),         (156, 87,1),(168,87,1)
-,(80,95,1),       (100, 95,1),(112,95,1),(124,95,1),(136,95,1),         (156, 95,1),(168,95,1)
-,(80,103,1),      (100, 103,1),(112,103,1),(124,103,1),(136,103,1),     (156, 103,1),(168,103,1)
-,(80,111,1),                                                            (156, 111,1),(168,111,1)
-    ,(84,119,1),(96,119,1),(108,119,1),(120,119,1),(132,119,1),(144,119,1),(156,119,1)
-                ,(0,0,3),(0,0,3),(0,0,3)]
 
 class DQN(Model):
 
@@ -204,7 +177,7 @@ class RandomAgent(object):
                 self.buffer.add_buffer(state, action, train_reward, next_state, done)
 
                 # if self.buffer.buffer_count() > 60:
-                if self.buffer.buffer_count() > 6000:
+                if self.buffer.buffer_count() > 1:
                     if self.EPSILON > self.EPSILON_MIN:
                         self.EPSILON *= self.EPSILON_DECAY
                     
@@ -233,7 +206,7 @@ class RandomAgent(object):
             print('Episode: ', ep + 1, 'Time: ', timee, 'Reward: ', episode_reward)
 
             self.save_epi_reward.append(episode_reward)
-            save_name = './random_bunkerh5/no_reward' + str(now.tm_mon) + str(now.tm_mday) + str(now.tm_hour) + str(now.tm_min) + str(now.tm_sec) + '.h5'
+            save_name = '../random_bunkerh5/no_reward' + str(now.tm_mon) + str(now.tm_mday) + str(now.tm_hour) + str(now.tm_min) + str(now.tm_sec) + '.h5'
             self.dqn.save_weights(save_name)
 
 if __name__ == '__main__':
@@ -244,7 +217,7 @@ if __name__ == '__main__':
     global old_actions
     old_actions = []
     state_size = 57 + 10
-    action_size = len(STATE_BUNKER)     # 원래는 환경에서 size들을 반환해주어야 함
+    action_size = len(bm.STATE_BUNKER)     # 원래는 환경에서 size들을 반환해주어야 함
 
     max_episode_num = 10000
     print(args.ip, args.port)

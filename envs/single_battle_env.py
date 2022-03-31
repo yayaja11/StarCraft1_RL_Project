@@ -2,50 +2,16 @@
 여기서 어떤 방식의 스타크래프트 RL을 만들지 정의하는 것 같음
 """
 
-import math
+
 import numpy as np
 from gym import spaces
-# import TorchCraft.starcraft_gym.proto as proto
-# import TorchCraft.starcraft_gym.gym_utils as utils
-import starcraft_gym.proto as proto
-import starcraft_gym.gym_utils as utils
-
-import torchcraft as tc
-# import torchcraft.Constants as tcc
 import torchcraft.Constants as tcc
-import starcraft_gym.envs.starcraft_env as sc
-# import torchcraft.Constants as tcc
-# import TorchCraft.starcraft_gym.envs.starcraft_env as sc
+import envs.starcraft_env as sc
+import bunker_map as bm
+
 
 
 DISTANCE_FACTOR = 16
-# (x축, y축, z) z: 0: 일반벙커, 1: 영웅벙커, 2: 유니크 벙커 3: upgrade
-STATE_BUNKER = [(0,0,3), (112,39,0),(124,39,0),(136,39,0),(148,39,0)
-                                                                     ,(156, 47,0)
-                ,(100,55,0),(112,55,0),(124,55,0),(136,55,0),           (156, 55,0)
-        ,(88,63,0),(100,63,0),(112,63,0),(124,63,0),(136,63,0),         (156, 63,0),(168,63,0)
-,(80,71,0)
-,(80,79,0),       (100, 79,0),(112,79,0),(124,79,0),(136,79,0),         (156, 79,0),(168,78,0)
-,(80,87,0),       (100, 87,0),(112,87,0),(124,87,0),(136,87,0),         (156, 87,0),(168,87,0)
-,(80,95,0),       (100, 95,0),(112,95,0),(124,95,0),(136,95,0),         (156, 95,0),(168,95,0)
-,(80,103,0),      (100, 103,0),(112,103,0),(124,103,0),(136,103,0),     (156, 103,0),(168,103,0)
-,(80,111,0),                                                            (156, 111,0),(168,111,0)
-    ,(84,119,0),(96,119,0),(108,119,0),(120,119,0),(132,119,0),(144,119,0),(156,119,0)
-                ,
-                (0,0,3), (112,39,1),(124,39,1),(136,39,1),(148,39,1)
-                                                               ,(156, 47,1)
-                ,(100,55,1),(112,55,1),(124,55,1),(136,55,1),         (156, 55,1)
-        ,(88,63,1),(100,63,1),(112,63,1),(124,63,1),(136,63,1),         (156, 63,1),(168,63,1)
-,(80,71,1)
-,(80,79,1),       (100, 79,1),(112,79,1),(124,79,1),(136,79,1),         (156, 79,1),(168,78,1)
-,(80,87,1),       (100, 87,1),(112,87,1),(124,87,1),(136,87,1),         (156, 87,1),(168,87,1)
-,(80,95,1),       (100, 95,1),(112,95,1),(124,95,1),(136,95,1),         (156, 95,1),(168,95,1)
-,(80,103,1),      (100, 103,1),(112,103,1),(124,103,1),(136,103,1),     (156, 103,1),(168,103,1)
-,(80,111,1),                                                            (156, 111,1),(168,111,1)
-    ,(84,119,1),(96,119,1),(108,119,1),(120,119,1),(132,119,1),(144,119,1),(156,119,1)
-                ,(0,0,3),(0,0,3),(0,0,3)]
-
-
 
 class SingleBattleEnv(sc.StarCraftEnv):
     def __init__(self, server_ip, server_port, speed=0, frame_skip=0, self_play = False, max_episode_steps = 2000):
@@ -63,7 +29,7 @@ class SingleBattleEnv(sc.StarCraftEnv):
 
     def _action_space(self):
 
-        self.number_of_state = len(STATE_BUNKER)  # + 영웅 + 유니크 + 업그레이드
+        self.number_of_state = len(bm.STATE_BUNKER)  # + 영웅 + 유니크 + 업그레이드
 
         return spaces.Discrete(self.number_of_state)
 
@@ -149,7 +115,7 @@ class SingleBattleEnv(sc.StarCraftEnv):
         elif action == ['bunker']:
             cmds.append([
                 tcc.command_unit_protected, scv_id,
-                tcc.unitcommandtypes.Build, -1, STATE_BUNKER[action_num][0], STATE_BUNKER[action_num][1],
+                tcc.unitcommandtypes.Build, -1, bm.STATE_BUNKER[action_num][0], bm.STATE_BUNKER[action_num][1],
                 tcc.unittypes.Terran_Supply_Depot])
 
         return cmds
