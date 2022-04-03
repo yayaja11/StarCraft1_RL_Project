@@ -9,11 +9,10 @@ import torchcraft.Constants as tcc
 import envs.starcraft_env as sc
 import bunker_map as bm
 
-
-
 DISTANCE_FACTOR = 16
 
-class SingleBattleEnv(sc.StarCraftEnv):
+class MakeCommandEnv(sc.StarCraftEnv):
+
     def __init__(self, server_ip, server_port, speed=0, frame_skip=0, self_play = False, max_episode_steps = 2000):
         # speed 60= 1000프레임을 60초동안. 1=1000프레임을 1초동안 아닌듯 1~6가는데 빨라짐
         self.speed = speed
@@ -25,7 +24,7 @@ class SingleBattleEnv(sc.StarCraftEnv):
         self.number_of_normal_bunker = 0
         self.number_of_hero_bunker = 0
 
-        super(SingleBattleEnv, self).__init__(server_ip, server_port, speed, frame_skip, self_play, max_episode_steps)
+        super(MakeCommandEnv, self).__init__(server_ip, server_port, speed, frame_skip, self_play, max_episode_steps)
 
     def _action_space(self):
 
@@ -56,32 +55,20 @@ class SingleBattleEnv(sc.StarCraftEnv):
 
     def _make_commands(self, action, action_num):
         cmds = []
-        scv = None
-        engineeringbay = None
-        hydra = None
-        larva = None
 
         for a in self.state.units[0]:
 
             if a.type == 7:
                 scv_id = a.id
-                scv = a
 
             if a.type == 122:
                 engineeringbay_id = a.id
-                engineeringbay = a
-
-            if a.type == 35:
-                larva_id = a.id
-                larva = a
 
             if a.type == 38:
                 hydra_id = a.id
-                hydra = a
 
             if a.type == 109:
                 supply_id = a.id
-                supply = a
 
         if action == ['hydra']:
             try:
@@ -241,7 +228,6 @@ class SingleBattleEnv(sc.StarCraftEnv):
             return False
 
     def check_upgrade_resources(self):
-        #if self.state.frame.resources[0].ore >= (self.curr_upgrade * 100):
         if self.state.frame.resources[0].ore >= (self.curr_upgrade * 1000):
 
             return True

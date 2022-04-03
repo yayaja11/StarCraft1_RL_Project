@@ -2,7 +2,7 @@ import gym
 import numpy as np
 import tensorflow as tf
 from TorchCraft.start_test import RandomAgent
-import TorchCraft.starcraft_gym.envs.single_battle_env as sc
+import TorchCraft.starcraft_gym.envs.make_command_env as sc
 import argparse
 
 STATE_BUNKER = [(0,0,3), (112,39,0),(124,39,0),(136,39,0),(148,39,0)

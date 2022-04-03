@@ -51,7 +51,6 @@ class StarCraftEnv(gym.Env):
             return False
 
     def hydra_make(self):
-        # print('-------')
         for i in self.state.frame.units[0]:
 
             if i.type == tcc.unittypes.Zerg_Hydralisk:
@@ -91,14 +90,12 @@ class StarCraftEnv(gym.Env):
         return False
 
     def is_done(self):     # 흐른 시간 측정
-
         for i in self.state.frame.units[0]:
             if i.type == tcc.unittypes.Terran_Supply_Depot:
                 if i.constructing == True:  # 건설중인 건물인가
                     self.unbuild_count += 1
                     if self.unbuild_count >= 30:
                         self.u = i
-
         self.post_action = self.action
 
         if self.done is True:
@@ -106,19 +103,17 @@ class StarCraftEnv(gym.Env):
             reward = self._compute_reward()
             info = self._get_info()
             self.obs_pre = self.obs
-
             return self.obs, reward, self.done, info
         else:
             return [1,1,self.done,1]
 
-    def empty_commands(self):
-        # 돈없으면 기다리기
+    def empty_commands(self):        # 돈없으면 기다리기
         self.client.send([])
         self.state = self.client.recv()
         self.done = self._check_done()
         for i in self.state.frame.units[0]:
             if i.type == tcc.unittypes.Terran_Supply_Depot:
-                if i.constructing == True:  # 건설중인 건물인가
+                if i.constructing == True:  # 건설중인 건물인가 *버그 방지
                     self.unbuild_count += 1
                     if self.unbuild_count >= 30:
                         self.u = i
@@ -147,7 +142,7 @@ class StarCraftEnv(gym.Env):
         print('now action:', self.number_of_action)
         print(self.state.frame_from_bwapi)
 
-        while self.state.frame_from_bwapi <= 100: # 100 프레임까지는 유닛이 초기화되지 않을 수 있으므로 대기
+        while self.state.frame_from_bwapi <= 100: # 처음 100 프레임까지는 유닛이 초기화되지 않을 수 있으므로 대기
             temp = self.empty_commands()
             if temp[2] == True:
                 return temp
