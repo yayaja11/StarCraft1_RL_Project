@@ -1,10 +1,12 @@
 import argparse
 import envs.make_command_env as sc
-from core.common.replaybuffer import ReplayBuffer
+from core.common.replaybuffer import ReplayBuffer, PrioritizedReplayBuffer
+from core.algorithm.DQN import Dueling_DQN, DQN
 import bunker_map as bm
+import pickle
 import torch
-
 import time
+from io import BytesIO
 import tensorflow as tf
 gpus = tf.config.experimental.list_physical_devices('GPU')
 for gpu in gpus:
@@ -13,72 +15,16 @@ from keras.layers import Dense
 from keras.optimizers import Adam
 from keras.models import Model
 import numpy as np
+import zmq
 
 np.set_printoptions(threshold=np.inf, linewidth=np.inf)
 
-DISCOUNT_FACTOR = 0.99
-BATCH_SIZE = 256
-REPLAY_BUFFER_SIZE = 100000
-LEARNING_RATE = 0.0005
-TARGET_MODEL_UPDATE_INTERVAL = 100
-WINDOW_LENGTH=1
-MAX_STEP_CNT = 3000000
-
-class Dueling_DQN(Model):
-
-    def __init__(self, action_n):
-        super(Dueling_DQN, self).__init__()
-
-        self.h0 = Dense(128, activation='relu')
-        self.h1 = Dense(64, activation='relu')
-        self.h2 = Dense(32, activation='relu')
-
-        self.fc1_v = Dense(16)
-        self.fc1_adv = Dense(16)
-        self.fc2_v = Dense(1)
-        self.fc2_adv = Dense(action_n)
-
-
-    def call(self, x):
-        x = self.h0(x)
-        x = self.h1(x)
-        x = self.h2(x)
-        adv = self.fc1_adv(x)
-        v = self.fc1_v(x)
-
-        adv = self.fc2_adv(adv)
-        v = self.fc2_v(v)
-
-
-        q = (v + (adv - tf.math.reduce_mean(adv, axis = 1, keepdims= True)))
-        return q
-
-class DQN(Model):
-
-    def __init__(self, action_n):
-        super(DQN, self).__init__()
-
-        self.h0 = Dense(128, activation='relu')
-        self.h1 = Dense(64, activation='relu')
-        self.h2 = Dense(32, activation='relu')
-        self.h3 = Dense(16, activation='relu')
-        self.q = Dense(action_n, activation='linear')
-
-
-    def call(self, x):
-        x = self.h0(x)
-        x = self.h1(x)
-        x = self.h2(x)
-        x = self.h3(x)
-
-        q = self.q(x)
-        return q
 
 class DQNAgent(object):
-    def __init__(self, env, state_size, action_size, algorithm, double, dueling):
+    def __init__(self, env, state_size, action_size, algorithm, double, dueling, per, z_port):
         self.GAMMA = 0.95
-        self.BATCH_SIZE = 32
-        self.BUFFER_SIZE = 20000        # 한 게임에 최대 60번의 action을 취하는데 버퍼 사이즈가 20000이면 너무 이전것까지 포함됨. 중복고려해서 조정 state가 다양할수록 더 커야할까 작아야할까? -> 좀 좋은 최근애들이 약 20action한다 가정했을때 500판까지 => 10000
+        self.BATCH_SIZE = 64
+        self.BUFFER_SIZE = 40000        # 한 게임에 최대 60번의 action을 취하는데 버퍼 사이즈가 20000이면 너무 이전것까지 포함됨. 중복고려해서 조정 state가 다양할수록 더 커야할까 작아야할까? -> 좀 좋은 최근애들이 약 20action한다 가정했을때 500판까지 => 10000
         self.DQN_LEARNING_RATE = 0.001
         self.TAU = 0.001
         self.EPSILON = 1.0
@@ -88,6 +34,8 @@ class DQNAgent(object):
         self.algorithm = algorithm
         self.double = double
         self.dueling = dueling
+        self.per = per
+        self.z_port = z_port
 
         self.state_dim = state_size
         self.action_n = action_size
@@ -106,10 +54,35 @@ class DQNAgent(object):
         self.network.summary()
 
         self.dqn_opt = Adam(self.DQN_LEARNING_RATE)
-        self.buffer = ReplayBuffer(self.BUFFER_SIZE)
+
+        if per == True:
+            self.buffer = PrioritizedReplayBuffer(self.BUFFER_SIZE)
+        else:
+            self.buffer = ReplayBuffer(self.BUFFER_SIZE)
 
         self.save_epi_reward = []
         self.miss_action = 0
+
+    def init_zmq(self):
+        context = zmq.Context()
+        learner_sock = context.socket(zmq.REQ)
+        learner_sock.connect("tcp://*:" + str(10000 + (self.z_port * 10)))  # get model from learner
+
+        buffer_sock = context.socket(zmq.PUSH)
+        buffer_sock.connect("tcp://*:" + str(10000 + (self.z_port * 10) + 1))  # send exp to buffer
+        return learner_sock, buffer_sock
+
+    def receive_model(self):
+        payload = self.learner_sock
+        if payload is None:
+            print('none model')
+            return self.network, self.target_network
+
+        bio = BytesIO(payload)
+        self.network = torch.load(bio, map_location={'cuda:0': 'cpu'})
+        self.target_network = torch.load(bio, map_location={'cuda:0': 'cpu'})
+
+
 
     def choose_action(self, state):
         temp_mask = self.mask[0].numpy()
@@ -130,6 +103,16 @@ class DQNAgent(object):
             print(qs)
             print(np.argmax(qs.numpy()))
             return np.argmax(qs.numpy())
+
+    def send_exp(self, buffer_socket):
+        batch, prios = self.buffer.take_all
+        if self.per is True:
+            payload = pickle.dumps((self.z_port, batch, prios))
+        else:
+            payload = pickle.dumps((self.batch))
+            self.buffer.clear_buffer()
+        buffer_socket.send(payload)
+
 
     def update_target_network(self, TAU):
         phi = self.network.get_weights()
@@ -174,6 +157,9 @@ class DQNAgent(object):
     def train(self, max_episode_num):
         self.update_target_network(1.0)
 
+        learner_sock, buffer_sock = self.init_zmq()
+        self.receive_model(learner_sock, self.network, self.target_network) # network 수신
+
 
         for ep in range(int(max_episode_num)):
             timee, episode_reward, done = 0, 0, False
@@ -208,13 +194,18 @@ class DQNAgent(object):
                 # train_reward = reward + self.time_funct(timee)       # 시간이 흐를수록 더 높은점수를 주면 나중엔 무슨짓을해도 높은점수를 받아서 막 행동하지 않을까? -> 그만큼 패널티도 증가한다면?
                 print('train_reward:', train_reward)
                 self.buffer.add_buffer(state, action, train_reward, next_state, done)       # 6000개 넘으면 밀어내기
+                self.send_exp(self.buff)
 
-                if self.buffer.buffer_count() > 6000:
+                # 여기서부터 buffer와 learner의 역할. sampling -> buffer
+                # learn -> learner
+                # doubling은 actor에서
+
+                if self.buffer.buffer_count() > 10000:
                 # if self.buffer.buffer_count() > 1:
                     if self.EPSILON > self.EPSILON_MIN:
                         self.EPSILON *= self.EPSILON_DECAY
-                    
-                    states, actions, rewards, next_states, dones = self.buffer.sample_batch((self.BATCH_SIZE))
+
+                    states, actions, rewards, next_states,_, dones = self.buffer.sample_batch((self.BATCH_SIZE))
 
                     if self.double is True:
                         curr_net_qs = self.network(tf.convert_to_tensor(next_states, dtype=tf.float32)) # double에서 행동 뽑는 theta
@@ -225,11 +216,14 @@ class DQNAgent(object):
 
                     self.dqn_learn(tf.convert_to_tensor(states, dtype=tf.float32), actions, tf.convert_to_tensor(y_i, dtype=tf.float32))
                     self.update_target_network(self.TAU)
+
+                #####
+
                 state = next_state
                 episode_reward += reward        # time reward는 포함되지않음.
 
             now = time.localtime()
-            yy = open('C:\starlog\log_end.txt', 'a')
+            yy = open('C:\starlog\log_dddqn_end.txt', 'a')
             yy.write('---------------------------------\n')
             end_data = str(ep) + ': ' + str(now.tm_mon) + str(now.tm_mday) + str(now.tm_hour) + str(
                 now.tm_min) + str(now.tm_sec) + 'obs: ' + str(list(map(int, next_state)))
@@ -243,16 +237,18 @@ class DQNAgent(object):
             print('Episode: ', ep + 1, 'Time: ', timee, 'Reward: ', episode_reward)
 
             self.save_epi_reward.append(episode_reward)
-            save_name = '../random_bunkerh5/no_reward' + str(now.tm_mon) + str(now.tm_mday) + str(now.tm_hour) + str(now.tm_min) + str(now.tm_sec) + '.h5'
+            save_name = '../random_bunkerh5/dddqn' + str(now.tm_mon) + str(now.tm_mday) + str(now.tm_hour) + str(now.tm_min) + str(now.tm_sec) + '.h5'
             self.network.save_weights(save_name)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--ip', help = 'server ip')
     parser.add_argument('--port', help = 'server port', default ='11111')
+    parser.add_argument('--z_port', help='zmq port', default='1000')
     parser.add_argument('--algorithm', help='rl algorithm', default='DQN')
     parser.add_argument('--double', help = 'applying double', default=False)
     parser.add_argument('--dueling', help='applying dueling', default=False)
+    parser.add_argument('--per', help='applying priorities experience replay', default=False)
     args = parser.parse_args()
     global old_actions
     old_actions = []
@@ -265,6 +261,6 @@ if __name__ == '__main__':
     env.seed(123)
 
     episodes = 0
-    agent = DQNAgent(env, state_size, action_size,args.algorithm, args.double, args.dueling)
+    agent = DQNAgent(env, state_size, action_size,args.algorithm, args.double, args.dueling, args.per, args.z_port)
     # agent.load_weights('./')
     agent.train(max_episode_num)    # RL 알고리즘 시작
