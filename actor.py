@@ -79,9 +79,12 @@ class DQNAgent(object):
             return self.network, self.target_network
 
         bio = BytesIO(payload)
-        self.network = torch.load(bio, map_location={'cuda:0': 'cpu'})
-        self.target_network = torch.load(bio, map_location={'cuda:0': 'cpu'})
-
+        # self.network = torch.load(bio, map_location={'cuda:0': 'cpu'})
+        # self.target_network = torch.load(bio, map_location={'cuda:0': 'cpu'})
+        print(bio)
+        print(bio[0])
+        self.network.load_weights(bio)
+        self.target_network.load_weights(bio)
 
 
     def choose_action(self, state):
@@ -261,6 +264,6 @@ if __name__ == '__main__':
     env.seed(123)
 
     episodes = 0
-    agent = DQNAgent(env, state_size, action_size,args.algorithm, args.double, args.dueling, args.per, args.z_port)
+    agent = DQNAgent(env, state_size, action_size, args.algorithm, args.double, args.dueling, args.per, args.z_port)
     # agent.load_weights('./')
     agent.train(max_episode_num)    # RL 알고리즘 시작
