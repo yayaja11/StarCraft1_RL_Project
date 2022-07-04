@@ -73,7 +73,6 @@ class MakeCommandEnv(sc.StarCraftEnv):
         if action == ['hydra']:
             try:
                 print('action:', action)
-                print(self.hydra_switch, action)
                 print('morph')
                 cmds.append([
                     tcc.command_unit, hydra_id,
