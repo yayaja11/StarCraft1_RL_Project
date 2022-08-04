@@ -5,9 +5,9 @@
 
 import numpy as np
 from gym import spaces
-import torchcraft.Constants as tcc
 import envs.starcraft_env as sc
 import bunker_map as bm
+import torchcraft.Constants as tcc
 
 DISTANCE_FACTOR = 16
 
@@ -137,11 +137,16 @@ class MakeCommandEnv(sc.StarCraftEnv):
         obs[57+4] = self.number_of_normal_bunker
         obs[57+5] = self.number_of_hero_bunker
         obs[57+6] = self.state.frame_from_bwapi / 100
-        obs[57+7] = self.miss_action
+
+        if obs[57+2] >= 90:
+            self.miss_action = 1
+            obs[57+7] = self.miss_action
+        self.miss_action = 0
+
         obs[57+8] = self.state.frame.resources[0].ore / 1000
         obs[57+9] = self.state.frame.resources[0].gas / 1000
 
-        self.miss_action = 0
+
         return obs
 
     def _check_done(self):
@@ -153,7 +158,7 @@ class MakeCommandEnv(sc.StarCraftEnv):
         # t = default + time
         # return (math.sqrt(-5*t) / 10) + 0.8
 
-        return (-7 * ((1 / 50 * time) ** 2)+800) / 10
+        return (-7 * ((1 / 50 * time) ** 2)+800) / 100
 
 
     def luck_funct(self, time):
@@ -190,23 +195,25 @@ class MakeCommandEnv(sc.StarCraftEnv):
         # if self.obs_pre[57+1] > self.obs[57+1]:     # 라이프 감소하면 -      # 일단 빼보기. 왜냐하면 라이프가 감소하기시작했다는것은 럭이 엄청 나오지 않는한 게임적으로 살아나기 어려움
         #     diff = self.obs_pre[57+1] = self.obs[57+1]
         #     reward -= self.life_funct(self.obs[57+6]/5) * diff
-        if self.obs_pre[57+2] < self.obs[57+2]:           # 럭 증가하면 +
-            diff = self.obs[57+2] - self.obs_pre[57+2]
-            if diff >= 100:
-                reward = 0
-            reward += 2 * diff
+        # if self.obs[57+2] >= 90:
+        #     return 0
+
+        # if self.obs_pre[57+2] < self.obs[57+2]:           # 럭 증가하면 +
+        #     diff = self.obs[57+2] - self.obs_pre[57+2]
+        #     reward += 0.0005 * diff   # 행운 보상 감소
             # reward += self.luck_funct(self.obs[57+6]/5) * diff
         # if self.obs_pre[57+6] < self.obs[57+6]:          # 오래 버틸수록 + -> start_test에서
         #     reward = 0.00001
         # if self.obs[57+7] < 0:
         #     reward = 20 * self.obs[57+7]
         #     self.miss_action = 0
-        if self._check_done() and not bool(self.state.battle_won):      # 일찍끝날수록 큰 패널티
-            reward -= self.end_funct()
+        # if self._check_done() and not bool(self.state.battle_won):      # 일찍끝날수록 큰 패널티
+        #     reward -= self.end_funct()
 
         if self._check_done() and bool(self.state.battle_won):
-            reward += 0
-            self.episode_wins += 1
+            reward += 1 # 이겼을때 + 1
+            self.episode_wins += 0.5
+        reward += self.obs[57+6] * 0.001
         return reward
 
     def check_normal_resources(self):

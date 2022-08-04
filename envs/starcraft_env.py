@@ -1,8 +1,9 @@
 import gym
-import torchcraft as tc
-import torchcraft.Constants as tcc
+
 import time
 import bunker_map as bm
+import torchcraft as tc
+import torchcraft.Constants as tcc
 
 bunker_units = [125, 0, 1, 32]
 
@@ -138,7 +139,7 @@ class StarCraftEnv(gym.Env):
             if i.type == 0:
                 self.now_marineDMG = i.groundATK
 
-        print('-------------------------\nstep start here')
+        # print('-------------------------\nstep start here')
         print('now action:', self.number_of_action)
         print(self.state.frame_from_bwapi)
 
@@ -271,13 +272,13 @@ class StarCraftEnv(gym.Env):
             print(upgrade_completed)
 
             now = time.localtime()
-            yy = open('C:\starlog\log_upgrade.txt', 'a')
-            yy.write('---------------------------------\n')
-            end_data = str(now.tm_mon) + str(now.tm_mday) + str(now.tm_hour) + str(
-                now.tm_min) + str(now.tm_sec) + 'obs: ' + str(list(map(int, self.obs))) + "\n" + upgrade_completed  # 이전 obs
-            yy.write(end_data)
-            yy.write('\n')
-            yy.close()
+            # yy = open('C:\starlog\log_upgrade.txt', 'a')
+            # yy.write('---------------------------------\n')
+            # end_data = str(now.tm_mon) + str(now.tm_mday) + str(now.tm_hour) + str(
+            #     now.tm_min) + str(now.tm_sec) + 'obs: ' + str(list(map(int, self.obs))) + "\n" + upgrade_completed  # 이전 obs
+            # yy.write(end_data)
+            # yy.write('\n')
+            # yy.close()
 
         else:
             temp = self.empty_commands()
