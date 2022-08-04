@@ -1,7 +1,7 @@
 import gym
 import numpy as np
 import tensorflow as tf
-from TorchCraft.start_test import RandomAgent
+from TorchCraft.actor import RandomAgent
 import TorchCraft.starcraft_gym.envs.make_command_env as sc
 import argparse
 

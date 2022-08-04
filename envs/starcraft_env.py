@@ -268,7 +268,7 @@ class StarCraftEnv(gym.Env):
                 if temp[2] == True:
                     return temp
             self.curr_upgrade += 1
-            upgrade_completed = 'upgrade completed' + str(self.curr_upgrade) + 'and it takes ' + str(self.state.frame_from_bwapi - self.pre_frame2)
+            upgrade_completed = 'upgrade completed ' + str(self.curr_upgrade) + ' and it takes ' + str(self.state.frame_from_bwapi - self.pre_frame2) + 'after build hero bunker: ' + str(self.number_of_hero_bunker) + ' normal bunker: ' + str(self.number_of_normal_bunker)
             print(upgrade_completed)
 
             now = time.localtime()
