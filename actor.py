@@ -61,6 +61,36 @@ class DQNAgent(object):
         self.save_epi_reward = []
         self.miss_action = 0
 
+    def compute_td_error(self, state, action, reward, next_state, done):
+        # next q value
+        state = tf.cast(tf.expand_dims(state, axis= 0), tf.float32)
+        action = tf.expand_dims(action, axis= 0)
+        reward = tf.cast(tf.expand_dims(reward, axis= 0), tf.float32)
+        next_state = tf.cast(tf.expand_dims(next_state, axis= 0), tf.float32)
+        done = tf.expand_dims(done, axis= 0)
+
+        qs = self.network(tf.convert_to_tensor(next_state, dtype=tf.float32))  # argmax Q(S_j, a)
+        max_q = np.argmax(qs.numpy(), axis=1)
+
+        tgt_next_net_qs = self.target_network(tf.convert_to_tensor(next_state, dtype=tf.float32))       # Q(S_j, a)
+        next_one_hot_action = tf.one_hot(max_q, self.action_n) # get argmax a 여기서 action 크기때문에 안될수도
+        next_q_value = tf.reduce_sum(tgt_next_net_qs * next_one_hot_action, axis=1, keepdims=True)
+        print(tgt_next_net_qs, max_q, next_one_hot_action)
+        expected_q_values = reward + DISCOUNT_FACTOR * next_q_value * (1 - int(done))
+        print('----------')
+        # current q value
+        net_qs = self.network(tf.convert_to_tensor(state, dtype=tf.float32))
+        curr_one_hot_action = tf.one_hot(action, self.action_n)# get argmax a
+        print(net_qs, action, curr_one_hot_action)
+        curr_q_values = tf.reduce_sum(net_qs * curr_one_hot_action, axis=1, keepdims=True)
+
+        print(reward, next_q_value)
+
+        td_error = np.abs(expected_q_values - curr_q_values)
+        return td_error + 1e-6
+
+
+
     def update_target_network(self, TAU):
         phi = self.network.get_weights()
         target_phi = self.target_network.get_weights()
@@ -157,7 +187,10 @@ class DQNAgent(object):
                 # train_reward = next_state[57+6] * 0.001 # 기존 step에서 시간으로
                 # timee = next_state[57 + 6]
                 # train_reward = reward + self.time_funct(timee)       # 시간이 흐를수록 더 높은점수를 주면 나중엔 무슨짓을해도 높은점수를 받아서 막 행동하지 않을까? -> 그만큼 패널티도 증가한다면?
-                q.put([state, action, reward, next_state, done])
+                print(state, action, reward, next_state, done)
+                p_loss = self.compute_td_error(state, action, reward, next_state, done) # 모든 actor에서 매번 인퍼런스하면 무거워지므로 나중에 몇회마다 1회로 바꿀것
+                print('$$$', p_loss)
+                q.put([state, action, reward, next_state, done, p_loss])
 
                 #
                 # self.buffer.add_buffer(state, action, train_reward, next_state, done)       # 6000개 넘으면 밀어내기
