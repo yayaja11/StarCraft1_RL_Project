@@ -193,9 +193,9 @@ class DQNAgent(object):
 
 
             now = time.localtime()
-            yy = open('C:\starlog\llog_8multi_ver2.txt', 'a')
+            yy = open('C:\starlog\llog_8multi_ver6.txt', 'a')
             yy.write('---------------------------------\n')
-            end_data = x + str(ep) + ': ' + str(now.tm_mon) + str(now.tm_mday) + str(now.tm_hour) + str(
+            end_data = x + str(ep) + ': ' + str(now.tm_mon)+ str(now.tm_mday) + str(now.tm_hour) + str(
                 now.tm_min) + str(now.tm_sec) + 'obs: ' + str(list(map(int, next_state)))
             yy.write(end_data)
             yy.write('\n')

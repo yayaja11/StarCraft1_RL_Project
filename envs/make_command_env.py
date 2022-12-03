@@ -1,8 +1,3 @@
-"""
-여기서 어떤 방식의 스타크래프트 RL을 만들지 정의하는 것 같음
-"""
-
-
 import numpy as np
 from gym import spaces
 import envs.starcraft_env as sc
@@ -73,7 +68,6 @@ class MakeCommandEnv(sc.StarCraftEnv):
         if action == ['hydra']:
             try:
                 print('action:', action)
-                print(self.hydra_switch, action)
                 print('morph')
                 cmds.append([
                     tcc.command_unit, hydra_id,
