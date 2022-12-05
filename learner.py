@@ -97,17 +97,19 @@ def learner(q, param_q, double, dueling, batch_size):
 
     network.build(input_shape=(None, state_dim))
     target_network.build(input_shape=(None, state_dim))
-
+    done = False
     while True:
-        while not q.empty():
-            temp = q.get()
-            state = temp[0]
-            action = temp[1]
-            reward = temp[2]
-            next_state = temp[3]
-            done = temp[4]
+        if not q.empty():
+            while done is False:
+                temp = q.get()
+                state = temp[0]
+                action = temp[1]
+                reward = temp[2]
+                next_state = temp[3]
+                done = temp[4]
+                memory.add_buffer(state, action, reward, next_state, done)
+            done = False
 
-            memory.add_buffer(state, action, reward, next_state, done)
         if memory.count > 10000: # memory buffer count랑 count랑 다른가? 아무튼 여기 진입못하는듯
             states, actions, rewards, next_states, dones = memory.sample_batch((batch_size))
 

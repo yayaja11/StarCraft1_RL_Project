@@ -4,6 +4,7 @@ from core.common.replaybuffer import ReplayBuffer
 import bunker_map as bm
 import torch
 import DQN as dqn
+import multiprocessing
 
 import time
 import tensorflow as tf
@@ -125,6 +126,7 @@ class DQNAgent(object):
     def play_step(self, max_episode_num, q, param_q, x): # x = actor 번호
         self.update_target_network(1.0)
         total_step = 0
+        temp_q = multiprocessing.Queue(100)
         for ep in range(int(max_episode_num)):
             timee, episode_reward, done = 0, 0, False
             max_a = 0
@@ -154,30 +156,18 @@ class DQNAgent(object):
                         self.mask[0][57 + i] = 1
 
                 next_state, reward, done, _ = self.env._step(action)
-                # train_reward = next_state[57+6] * 0.001 # 기존 step에서 시간으로
-                # timee = next_state[57 + 6]
-                # train_reward = reward + self.time_funct(timee)       # 시간이 흐를수록 더 높은점수를 주면 나중엔 무슨짓을해도 높은점수를 받아서 막 행동하지 않을까? -> 그만큼 패널티도 증가한다면?
-                q.put([state, action, reward, next_state, done])
+                if done is False:
+                    temp_q.put([state, action, reward, next_state, done])
+                    state = next_state
 
-                #
-                # self.buffer.add_buffer(state, action, train_reward, next_state, done)       # 6000개 넘으면 밀어내기
-                # print('now exp',state, action, train_reward, next_state, done)
-
-                # if self.buffer.buffer_count() > 6000:
-                if total_step > 10:
+                else:
+                    temp_q.put([state, action, reward, next_state, done])
+                    while not temp_q.empty():
+                        q.put(temp_q.get())
 
                     if self.EPSILON > self.EPSILON_MIN:
                         self.EPSILON *= self.EPSILON_DECAY
-                    # states, actions, rewards, next_states, dones = self.buffer.sample_batch((self.BATCH_SIZE))
 
-                    # if self.double is True:
-                    #     curr_net_qs = self.network(tf.convert_to_tensor(next_states, dtype=tf.float32)) # double에서 행동 뽑는 theta
-                    #     max_a = np.argmax(curr_net_qs.numpy(), aixs=1)
-                    #
-                    # target_qs = self.target_network(tf.convert_to_tensor(next_states, dtype=tf.float32))    # target_qs는 next_state만 담은 것
-                    # y_i = self.td_target(rewards, target_qs.numpy(), max_a, dones)
-                    #
-                    # self.dqn_learn(tf.convert_to_tensor(states, dtype=tf.float32), actions, tf.convert_to_tensor(y_i, dtype=tf.float32))
                     if not param_q.empty():
                         try:
                             weights = param_q.get()
@@ -187,9 +177,6 @@ class DQNAgent(object):
                             self.update_target_network(self.TAU)
                         except:
                             pass
-                #
-                state = next_state
-                episode_reward += reward        # time reward는 포함되지않음.
 
 
             now = time.localtime()

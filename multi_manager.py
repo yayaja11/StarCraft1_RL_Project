@@ -21,7 +21,7 @@ if __name__ == '__main__':
         q = multiprocessing.Queue(1000)
         param_q = multiprocessing.Queue()
         workers = [multiprocessing.Process(target=actor_process, args=(ip, str(int(port) + x), algorithm, double,
-                                                                       dueling, q, param_q, str(x),)) for x in range(2)]
+                                                                       dueling, q, param_q, str(x),)) for x in range(1)]
         learners = [multiprocessing.Process(target=learner_process, args=(q, param_q, double, dueling, batch_size,)) for y in range(1)]
         # buffers = [multiprocessing.Process(target=buffer_process, args=(q,)) for z in range(1)]
 
