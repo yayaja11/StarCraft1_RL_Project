@@ -2,6 +2,12 @@ import multiprocessing
 import actor as ac
 import learner as learn
 import time
+from tianshou.data import Collector, VectorReplayBuffer
+from tianshou.policy import ICMPolicy, PPOPolicy
+from tianshou.trainer import onpolicy_trainer
+from tianshou.utils import TensorboardLogger, WandbLogger
+from tianshou.utils.net.common import ActorCritic
+from tianshou.utils.net.discrete import Actor, Critic, IntrinsicCuriosityModule
 
 def actor_process(ip, port, algorithm, double, dueling, q, param_q, x ):
     ac.actor_func(ip, port, algorithm, double, dueling, q, param_q, x)
@@ -17,11 +23,11 @@ if __name__ == '__main__':
         algorithm = 'DQN'
         batch_size = 1024
         double = True
-        dueling = True
+        dueling = False
         q = multiprocessing.Queue(1000)
         param_q = multiprocessing.Queue()
         workers = [multiprocessing.Process(target=actor_process, args=(ip, str(int(port) + x), algorithm, double,
-                                                                       dueling, q, param_q, str(x),)) for x in range(1)]
+                                                                       dueling, q, param_q, str(x),)) for x in range(8)]
         learners = [multiprocessing.Process(target=learner_process, args=(q, param_q, double, dueling, batch_size,)) for y in range(1)]
         # buffers = [multiprocessing.Process(target=buffer_process, args=(q,)) for z in range(1)]
 

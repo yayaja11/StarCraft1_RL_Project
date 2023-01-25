@@ -28,8 +28,8 @@ class MakeCommandEnv(sc.StarCraftEnv):
         return spaces.Discrete(self.number_of_state)
 
     def _observation_space(self):
-        obs_low  = [1,2,3,4,5,6,7,8,9,10] + [0] * 57
-        obs_high  = [1,2,3,4,5,6,7,8,9,10] + [0] * 57
+        obs_low  = [1,2,3,4,5,6,7,8,9] + [0] * 57
+        obs_high  = [1,2,3,4,5,6,7,8,9] + [0] * 57
         return spaces.Box(np.array(obs_low), np.array(obs_high))
 
     def _make_commands_click(self, action, x, y):
@@ -40,7 +40,6 @@ class MakeCommandEnv(sc.StarCraftEnv):
                 scv_id = a.id
                 scv = a
 
-        print('action:', action)
         if action == ['finish']:
             cmds.append([
                 tcc.command_unit_protected, scv_id,
@@ -67,8 +66,6 @@ class MakeCommandEnv(sc.StarCraftEnv):
 
         if action == ['hydra']:
             try:
-                print('action:', action)
-                print('morph')
                 cmds.append([
                     tcc.command_unit, hydra_id,
                     tcc.unitcommandtypes.Morph, -1, -1, -1, tcc.unittypes.Zerg_Lurker])
@@ -76,9 +73,6 @@ class MakeCommandEnv(sc.StarCraftEnv):
                 self.hydra_switch = 1
 
         if action == ['halt']:
-            print('action:', action)
-            print(self.hydra_switch, action)
-            print('halt')
             cmds.append([
                 tcc.command_unit, supply_id,
                 tcc.unitcommandtypes.Cancel_Construction, -1, -1, -1, -1])
@@ -122,6 +116,12 @@ class MakeCommandEnv(sc.StarCraftEnv):
         for i in self.state.frame.units[0]:
             if i.type == 37:
                 lucks += 1
+                # if lucks >= 90:
+                #     obs[99+1192] = 2
+                #     import time
+                #     time.sleep(90000)
+                    # import pdb
+                    # pdb.set_trace()
 
         for i in range(57):
             obs[i] = self.bunker_build_state[i]
@@ -130,17 +130,9 @@ class MakeCommandEnv(sc.StarCraftEnv):
         obs[57+3] = self.curr_upgrade
         obs[57+4] = self.number_of_normal_bunker
         obs[57+5] = self.number_of_hero_bunker
-        obs[57+6] = self.state.frame_from_bwapi / 100
-
-        if obs[57+2] >= 90:
-            self.miss_action = 1
-            obs[57+7] = self.miss_action
-        self.miss_action = 0
-
-        obs[57+8] = self.state.frame.resources[0].ore / 1000
-        obs[57+9] = self.state.frame.resources[0].gas / 1000
-
-
+        obs[57+6] = self.state.frame_from_bwapi / 1000
+        obs[57+7] = self.state.frame.resources[0].ore / 1000
+        obs[57+8] = self.state.frame.resources[0].gas / 1000
         return obs
 
     def _check_done(self):
@@ -189,8 +181,9 @@ class MakeCommandEnv(sc.StarCraftEnv):
         # if self.obs_pre[57+1] > self.obs[57+1]:     # 라이프 감소하면 -      # 일단 빼보기. 왜냐하면 라이프가 감소하기시작했다는것은 럭이 엄청 나오지 않는한 게임적으로 살아나기 어려움
         #     diff = self.obs_pre[57+1] = self.obs[57+1]
         #     reward -= self.life_funct(self.obs[57+6]/5) * diff
-        # if self.obs[57+2] >= 90:
-        #     return 0
+        if self.obs[57+2] >= 200:
+            import time
+            time.sleep(90000)
 
         # if self.obs_pre[57+2] < self.obs[57+2]:           # 럭 증가하면 +
         #     diff = self.obs[57+2] - self.obs_pre[57+2]
@@ -204,11 +197,15 @@ class MakeCommandEnv(sc.StarCraftEnv):
         # if self._check_done() and not bool(self.state.battle_won):      # 일찍끝날수록 큰 패널티
         #     reward -= self.end_funct()
 
-        if self._check_done() and bool(self.state.battle_won):
-            reward += 1 # 이겼을때 + 1
-            self.episode_wins += 0.5
-        reward += self.obs[57+6] * 0.001
+        # if self._check_done() and bool(self.state.battle_won):
+        #     reward += 1 # 이겼을때 + 1
+        #     self.episode_wins += 0.5
+
+        reward += self.obs[57+6] * 0.1
         return reward
+
+
+
 
     def check_normal_resources(self):
         if self.state.frame.resources[0].ore >= 1000:

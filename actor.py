@@ -34,6 +34,7 @@ class DQNAgent(object):
         self.TAU = 0.001
         self.EPSILON = 1.0
         self.EPSILON_DECAY = 0.995
+
         self.EPSILON_MIN = 0.01
         self.env = env
         self.algorithm = algorithm
@@ -74,7 +75,7 @@ class DQNAgent(object):
         temp_mask = self.mask[0].numpy()
         if np.random.random() <= self.EPSILON:
             while 1:
-                print('@@ random', self.EPSILON)
+                # print('choose random action', self.EPSILON)
                 pick = self.env.action_space.sample()
                 if temp_mask[pick] == 1:
                     pass
@@ -133,17 +134,18 @@ class DQNAgent(object):
             steps = -1
             state = self.env._reset()
             next_state = state
-            self.mask = torch.zeros(1, 117)         # torch 쓴 이유: tensorflow zeros는 생성한 리스트 변경불가
+            self.mask = torch.zeros(1, len(bm.STATE_BUNKER))         # torch 쓴 이유: tensorflow zeros는 생성한 리스트 변경불가
 
             while not done:
                 steps += 1
                 total_step += 1
                 action = self.choose_action(state)
-                if action == 0 or action == 57:     # 이 장소에 벙커를 지으면 버그 발생
+                if action == 57:     # 이 장소에 벙커를 지으면 버그 발생
                     pass
-                elif action >= 114:                 # 업그레이드는 masking X
+                elif action >= 114:                 # 업그레이드도 maks
+                    # self.mask[0][action] = 1
                     pass
-                elif action > 57 and action < 114:  # 행동을 정했을 경우 해당 장소를 masking 하여 재선택하지 않도록
+                elif action > 57 and action <= 113:  # 행동을 정했을 경우 해당 장소를 masking 하여 재선택하지 않도록
                     self.mask[0][action] = 1        # 가장 이상적인 것은 건설이 완료됐을 때 하는 것 이지만 건설이 완료됬음을 train까지 반환하기는 과하다 판단
                     self.mask[0][action - 57] = 1   # 이렇게해도 반드시 행동을 완수하도록 만들었기 때문에 문제 없음
 
@@ -151,7 +153,7 @@ class DQNAgent(object):
                     self.mask[0][action] = 1
                     self.mask[0][action + 57] = 1
 
-                if action >= 57 and action < 114 and next_state[57+5] == 12:    # 영웅벙커는 최대 12회까지 지을 수 있습니다.
+                if next_state[57+5] == 12:    # 영웅벙커는 최대 12회까지 지을 수 있습니다.
                     for i in range(57):
                         self.mask[0][57 + i] = 1
 
@@ -159,14 +161,13 @@ class DQNAgent(object):
                 if done is False:
                     temp_q.put([state, action, reward, next_state, done])
                     state = next_state
+                    if self.EPSILON > self.EPSILON_MIN:
+                        self.EPSILON *= self.EPSILON_DECAY
 
                 else:
                     temp_q.put([state, action, reward, next_state, done])
                     while not temp_q.empty():
                         q.put(temp_q.get())
-
-                    if self.EPSILON > self.EPSILON_MIN:
-                        self.EPSILON *= self.EPSILON_DECAY
 
                     if not param_q.empty():
                         try:
@@ -180,7 +181,7 @@ class DQNAgent(object):
 
 
             now = time.localtime()
-            yy = open('C:\starlog\llog_8multi_ver6.txt', 'a')
+            yy = open('C:\starlog\llog_8multi_ver12.txt', 'a')
             yy.write('---------------------------------\n')
             end_data = x + str(ep) + ': ' + str(now.tm_mon)+ str(now.tm_mday) + str(now.tm_hour) + str(
                 now.tm_min) + str(now.tm_sec) + 'obs: ' + str(list(map(int, next_state)))
@@ -198,7 +199,7 @@ class DQNAgent(object):
             self.network.save_weights(save_name)
 
 def actor_func(ip, port, algorithm, double, dueling, q, param_q, x ):
-    state_size = 57 + 10
+    state_size = 58 + 9
     action_size = len(bm.STATE_BUNKER)
     max_episode_num = 10000
     env = sc.MakeCommandEnv(ip, port)

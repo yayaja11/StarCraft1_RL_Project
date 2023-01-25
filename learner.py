@@ -12,6 +12,7 @@ from collections import deque
 import random
 import DQN as dqn
 import bunker_map as bm
+import time
 
 class Memory(object):
     def __init__(self, capacity):
@@ -85,8 +86,8 @@ def update_target_network(TAU, network, target_network):
 
 def learner(q, param_q, double, dueling, batch_size):
     action_size = len(bm.STATE_BUNKER)
-    memory = Memory(40000)
-    state_dim = 57 + 10
+    memory = Memory(60000)
+    state_dim = 58 + 9
     if dueling == True:
         network = dqn.Dueling_DQN(action_size)
         target_network = dqn.Dueling_DQN(action_size)
@@ -100,37 +101,40 @@ def learner(q, param_q, double, dueling, batch_size):
     done = False
     while True:
         if not q.empty():
-            while done is False:
-                temp = q.get()
-                state = temp[0]
-                action = temp[1]
-                reward = temp[2]
-                next_state = temp[3]
-                done = temp[4]
-                memory.add_buffer(state, action, reward, next_state, done)
-            done = False
+            temp = q.get()
+            q.put(temp)
+            if temp[4] == True:
+                while not q.empty():
+                    temp = q.get()
+                    state = temp[0]
+                    action = temp[1]
+                    reward = temp[2]
+                    next_state = temp[3]
+                    done = temp[4]
+                    memory.add_buffer(state, action, reward, next_state, done)
 
-        if memory.count > 10000: # memory buffer count랑 count랑 다른가? 아무튼 여기 진입못하는듯
-            states, actions, rewards, next_states, dones = memory.sample_batch((batch_size))
+                if memory.count > 4000: # memory buffer count랑 count랑 다른가? 아무튼 여기 진입못하는듯
+                    states, actions, rewards, next_states, dones = memory.sample_batch((batch_size))
 
-            if double is True:
-                curr_net_qs = network(tf.convert_to_tensor(next_states, dtype=tf.float32))  # double에서 행동 뽑는 theta
-                max_a = np.argmax(curr_net_qs.numpy(), axis=1)
+                    if double is True:
+                        curr_net_qs = network(tf.convert_to_tensor(next_states, dtype=tf.float32))  # double에서 행동 뽑는 theta
+                        max_a = np.argmax(curr_net_qs.numpy(), axis=1)
 
-            target_qs = target_network(tf.convert_to_tensor(next_states, dtype=tf.float32))  # target_qs는 next_state만 담은 것
-            y_i = td_target(action_size, rewards, target_qs.numpy(), max_a, dones, double)
+                    target_qs = target_network(tf.convert_to_tensor(next_states, dtype=tf.float32))  # target_qs는 next_state만 담은 것
+                    y_i = td_target(action_size, rewards, target_qs.numpy(), max_a, dones, double)
 
-            dqn_learn(network, action_size, tf.convert_to_tensor(states, dtype=tf.float32), actions,
-                           tf.convert_to_tensor(y_i, dtype=tf.float32))
-            update_target_network(0.001, network, target_network) # TAU
+                    dqn_learn(network, action_size, tf.convert_to_tensor(states, dtype=tf.float32), actions,
+                                   tf.convert_to_tensor(y_i, dtype=tf.float32))
+                    update_target_network(0.001, network, target_network) # TAU
 
-            # 만약 뺏을 때 actor가 마침 param_q에서 빼고 다시 넣는중일 수 있음 그때를 방지하기 위함
-            if not param_q.empty():
-                try:
-                    garbege = param_q.get()
-                except:
-                    pass
+                    # 만약 뺏을 때 actor가 마침 param_q에서 빼고 다시 넣는중일 수 있음 그때를 방지하기 위함
+                    print('@@@param_q_size:',param_q.qsize())
+                    if not param_q.empty():
+                        try:
+                            garbege = param_q.get()
+                        except:
+                            pass
 
-            param_q.put([network.get_weights(), target_network.get_weights()]) # main, target
-
-
+                    param_q.put([network.get_weights(), target_network.get_weights()]) # main, target
+        else:
+            time.sleep(1)
