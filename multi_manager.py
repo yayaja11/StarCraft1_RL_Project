@@ -22,9 +22,9 @@ if __name__ == '__main__':
         port = '11111'
         algorithm = 'DQN'
         batch_size = 1024
-        double = True
+        double = False
         dueling = False
-        q = multiprocessing.Queue(1000)
+        q = multiprocessing.Queue(3000)
         param_q = multiprocessing.Queue()
         workers = [multiprocessing.Process(target=actor_process, args=(ip, str(int(port) + x), algorithm, double,
                                                                        dueling, q, param_q, str(x),)) for x in range(8)]

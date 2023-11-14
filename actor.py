@@ -27,12 +27,12 @@ MAX_STEP_CNT = 3000000
 
 class DQNAgent(object):
     def __init__(self, env, state_size, action_size, algorithm, double, dueling):
-        self.GAMMA = 0.95
+        self.GAMMA = 0.99
         self.BATCH_SIZE = 32
-        self.BUFFER_SIZE = 20000        # 한 게임에 최대 60번의 action을 취하는데 버퍼 사이즈가 20000이면 너무 이전것까지 포함됨. 중복고려해서 조정 state가 다양할수록 더 커야할까 작아야할까? -> 좀 좋은 최근애들이 약 20action한다 가정했을때 500판까지 => 10000
+        self.BUFFER_SIZE = 40000        # 한 게임에 최대 60번의 action을 취하는데 버퍼 사이즈가 20000이면 너무 이전것까지 포함됨. 중복고려해서 조정 state가 다양할수록 더 커야할까 작아야할까? -> 좀 좋은 최근애들이 약 20action한다 가정했을때 500판까지 => 10000
         self.DQN_LEARNING_RATE = 0.001
         self.TAU = 0.001
-        self.EPSILON = 1.0
+        self.EPSILON = 0.5
         self.EPSILON_DECAY = 0.995
 
         self.EPSILON_MIN = 0.01
@@ -46,36 +46,36 @@ class DQNAgent(object):
 
         if self.dueling == True:
             self.network = dqn.Dueling_DQN(self.action_n)
-            self.target_network = dqn.Dueling_DQN(self.action_n)
+            # self.target_network = dqn.Dueling_DQN(self.action_n)
 
         else:
             self.network = dqn.DQN(self.action_n)
-            self.target_network = dqn.DQN(self.action_n)
+            # self.target_network = dqn.DQN(self.action_n)
 
         self.network.build(input_shape=(None, self.state_dim))
-        self.target_network.build(input_shape=(None, self.state_dim))
+        # self.target_network.build(input_shape=(None, self.state_dim))
 
-        self.network.summary()
+        # self.network.summary()
 
-        self.dqn_opt = Adam(self.DQN_LEARNING_RATE)
-        self.buffer = ReplayBuffer(self.BUFFER_SIZE)
+        # self.dqn_opt = Adam(self.DQN_LEARNING_RATE)
+        # self.buffer = ReplayBuffer(self.BUFFER_SIZE)
 
         self.save_epi_reward = []
         self.miss_action = 0
 
-    def update_target_network(self, TAU):
-        phi = self.network.get_weights()
-        target_phi = self.target_network.get_weights()
-        for i in range(len(phi)):
-            target_phi[i] = TAU * phi[i] + (1 - TAU) * target_phi[i]
-        self.target_network.set_weights(target_phi)
+    # def update_target_network(self, TAU):
+    #     phi = self.network.get_weights()
+    #     target_phi = self.target_network.get_weights()
+    #     for i in range(len(phi)):
+    #         target_phi[i] = TAU * phi[i] + (1 - TAU) * target_phi[i]
+    #     self.target_network.set_weights(target_phi)
 
 
-    def choose_action(self, state):
+    def choose_action(self, state, x):
         temp_mask = self.mask[0].numpy()
         if np.random.random() <= self.EPSILON:
             while 1:
-                # print('choose random action', self.EPSILON)
+                print('choose random action', self.EPSILON)
                 pick = self.env.action_space.sample()
                 if temp_mask[pick] == 1:
                     pass
@@ -85,11 +85,32 @@ class DQNAgent(object):
             return pick
         else:
             qs = self.network(tf.convert_to_tensor([state], dtype=tf.float32))
+            print('-------------------', x,'--------------------------\n', qs)
             np_tensor = qs.numpy()
-            qs = tf.where(temp_mask, -500.0, np_tensor)     # masking
+            qs = tf.where(temp_mask, -100.0, np_tensor)     # masking
             # print(qs)
             # print(np.argmax(qs.numpy()))
             return np.argmax(qs.numpy())
+
+    # def choose_action(self, state): # origin
+    #     temp_mask = self.mask[0].numpy()
+    #     if np.random.random() <= self.EPSILON:
+    #         while 1:
+    #             # print('choose random action', self.EPSILON)
+    #             pick = self.env.action_space.sample()
+    #             if temp_mask[pick] == 1:
+    #                 pass
+    #             elif temp_mask[pick] == 0:
+    #                 break
+    #
+    #         return pick
+    #     else:
+    #         qs = self.network(tf.convert_to_tensor([state], dtype=tf.float32))
+    #         np_tensor = qs.numpy()
+    #         qs = tf.where(temp_mask, -500.0, np_tensor)     # masking
+    #         # print(qs)
+    #         # print(np.argmax(qs.numpy()))
+    #         return np.argmax(qs.numpy())
 
     # def dqn_learn(self, states, actions, td_targets):
     #     with tf.GradientTape() as tape:
@@ -125,9 +146,9 @@ class DQNAgent(object):
         return (7 * ((1/50 * timee) ** 2)) / 10
 
     def play_step(self, max_episode_num, q, param_q, x): # x = actor 번호
-        self.update_target_network(1.0)
+        # self.update_target_network(1.0)
         total_step = 0
-        temp_q = multiprocessing.Queue(100)
+        # temp_q = multiprocessing.Queue(100)
         for ep in range(int(max_episode_num)):
             timee, episode_reward, done = 0, 0, False
             max_a = 0
@@ -135,16 +156,16 @@ class DQNAgent(object):
             state = self.env._reset()
             next_state = state
             self.mask = torch.zeros(1, len(bm.STATE_BUNKER))         # torch 쓴 이유: tensorflow zeros는 생성한 리스트 변경불가
-
+            self.mask[0][57] = 1
             while not done:
                 steps += 1
                 total_step += 1
-                action = self.choose_action(state)
-                if action == 57:     # 이 장소에 벙커를 지으면 버그 발생
+                action = self.choose_action(state, x)
+                if action == 57:     # 이 장소에 벙커를 지으면 버그 발생 # 업글로 대체
                     pass
                 elif action >= 114:                 # 업그레이드도 maks
-                    # self.mask[0][action] = 1
-                    pass
+                    self.mask[0][action] = 1
+
                 elif action > 57 and action <= 113:  # 행동을 정했을 경우 해당 장소를 masking 하여 재선택하지 않도록
                     self.mask[0][action] = 1        # 가장 이상적인 것은 건설이 완료됐을 때 하는 것 이지만 건설이 완료됬음을 train까지 반환하기는 과하다 판단
                     self.mask[0][action - 57] = 1   # 이렇게해도 반드시 행동을 완수하도록 만들었기 때문에 문제 없음
@@ -153,35 +174,39 @@ class DQNAgent(object):
                     self.mask[0][action] = 1
                     self.mask[0][action + 57] = 1
 
-                if next_state[57+5] == 12:    # 영웅벙커는 최대 12회까지 지을 수 있습니다.
+                if next_state[57+5] >= 12:    # 영웅벙커는 최대 12회까지 지을 수 있습니다.
                     for i in range(57):
-                        self.mask[0][57 + i] = 1
+                        self.mask[0][57 + i + 1] = 1
 
                 next_state, reward, done, _ = self.env._step(action)
-                if done is False:
-                    temp_q.put([state, action, reward, next_state, done])
-                    state = next_state
+
+                q.put([state, action, reward, next_state, done])
+
+                #
+                # self.buffer.add_buffer(state, action, train_reward, next_state, done)       # 6000개 넘으면 밀어내기
+                # print('now exp',state, action, train_reward, next_state, done)
+
+                # if self.buffer.buffer_count() > 6000:
+                if total_step > 0:
+
                     if self.EPSILON > self.EPSILON_MIN:
                         self.EPSILON *= self.EPSILON_DECAY
-
-                else:
-                    temp_q.put([state, action, reward, next_state, done])
-                    while not temp_q.empty():
-                        q.put(temp_q.get())
 
                     if not param_q.empty():
                         try:
                             weights = param_q.get()
+                            self.network.set_weights(weights[0]) # target net
                             param_q.put(weights)  # 다른 actor들도 동일한 최신 param을 사용할 수 있게
-                            self.network.set_weights(weights[0])
-                            self.target_network.set_weights(weights[1])
-                            self.update_target_network(self.TAU)
+
+                            # self.target_network.set_weights(weights[1])
+                            # self.update_target_network(self.TAU)
                         except:
                             pass
-
+                state = next_state
+                episode_reward += reward
 
             now = time.localtime()
-            yy = open('C:\starlog\llog_8multi_ver12.txt', 'a')
+            yy = open('C:\starlog\log20230725.txt', 'a')
             yy.write('---------------------------------\n')
             end_data = x + str(ep) + ': ' + str(now.tm_mon)+ str(now.tm_mday) + str(now.tm_hour) + str(
                 now.tm_min) + str(now.tm_sec) + 'obs: ' + str(list(map(int, next_state)))
@@ -195,11 +220,11 @@ class DQNAgent(object):
             # print('Episode: ', ep + 1, 'Time: ', timee, 'Reward: ', episode_reward)
 
             self.save_epi_reward.append(episode_reward)
-            save_name = '../random_bunkerh5/no_reward' + str(now.tm_mon) + str(now.tm_mday) + str(now.tm_hour) + str(now.tm_min) + str(now.tm_sec) + x +'.h5'
-            self.network.save_weights(save_name)
+            # save_name = '../random_bunkerh5/no_reward' + str(now.tm_mon) + str(now.tm_mday) + str(now.tm_hour) + str(now.tm_min) + str(now.tm_sec) + x +'.h5'
+            # self.network.save_weights(save_name)
 
 def actor_func(ip, port, algorithm, double, dueling, q, param_q, x ):
-    state_size = 58 + 9
+    state_size = 58 + 7
     action_size = len(bm.STATE_BUNKER)
     max_episode_num = 10000
     env = sc.MakeCommandEnv(ip, port)

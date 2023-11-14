@@ -28,8 +28,8 @@ class MakeCommandEnv(sc.StarCraftEnv):
         return spaces.Discrete(self.number_of_state)
 
     def _observation_space(self):
-        obs_low  = [1,2,3,4,5,6,7,8,9] + [0] * 57
-        obs_high  = [1,2,3,4,5,6,7,8,9] + [0] * 57
+        obs_low  = [1,2,3,4,5,6,7] + [0] * 58
+        obs_high  = [1,2,3,4,5,6,7] + [0] * 58
         return spaces.Box(np.array(obs_low), np.array(obs_high))
 
     def _make_commands_click(self, action, x, y):
@@ -126,13 +126,16 @@ class MakeCommandEnv(sc.StarCraftEnv):
         for i in range(57):
             obs[i] = self.bunker_build_state[i]
         obs[57+1] = lifes  # 라이프
+        # obs[57+1] = 0
         obs[57+2] = lucks  # 럭
         obs[57+3] = self.curr_upgrade
         obs[57+4] = self.number_of_normal_bunker
         obs[57+5] = self.number_of_hero_bunker
-        obs[57+6] = self.state.frame_from_bwapi / 1000
-        obs[57+7] = self.state.frame.resources[0].ore / 1000
-        obs[57+8] = self.state.frame.resources[0].gas / 1000
+        # obs[57+4] = 0
+        # obs[57+5] = 0
+        obs[57+6] = self.state.frame_from_bwapi / 100 # 시간
+        obs[57+7] = self.state.frame.resources[0].ore / 1000 # 미네랄
+        # obs[57+8] = self.state.frame.resources[0].gas / 1000
         return obs
 
     def _check_done(self):
@@ -144,7 +147,7 @@ class MakeCommandEnv(sc.StarCraftEnv):
         # t = default + time
         # return (math.sqrt(-5*t) / 10) + 0.8
 
-        return (-7 * ((1 / 50 * time) ** 2)+800) / 100
+        return (-7 * ((1 / 50 * time) ** 2)+800) / 1000
 
 
     def luck_funct(self, time):
@@ -176,32 +179,40 @@ class MakeCommandEnv(sc.StarCraftEnv):
             return time * 0.05
 
     def _compute_reward(self):  #보상 계산
-        reward = 0
+        reward = 0.01
 
         # if self.obs_pre[57+1] > self.obs[57+1]:     # 라이프 감소하면 -      # 일단 빼보기. 왜냐하면 라이프가 감소하기시작했다는것은 럭이 엄청 나오지 않는한 게임적으로 살아나기 어려움
         #     diff = self.obs_pre[57+1] = self.obs[57+1]
         #     reward -= self.life_funct(self.obs[57+6]/5) * diff
-        if self.obs[57+2] >= 200:
-            import time
-            time.sleep(90000)
+        # if self.obs[57+2] >= 200:
+        #     import time
+        #     time.sleep(90000)
+        # reward = 0.01
+        # if self.obs_pre[57+6] < self.obs[57+6]:
+        #     diff = self.obs[57+6] - self.obs_pre[57+6]
+        #     reward += 0.01 * diff
 
-        # if self.obs_pre[57+2] < self.obs[57+2]:           # 럭 증가하면 +
-        #     diff = self.obs[57+2] - self.obs_pre[57+2]
-        #     reward += 0.0005 * diff   # 행운 보상 감소
-            # reward += self.luck_funct(self.obs[57+6]/5) * diff
-        # if self.obs_pre[57+6] < self.obs[57+6]:          # 오래 버틸수록 + -> start_test에서
-        #     reward = 0.00001
-        # if self.obs[57+7] < 0:
-        #     reward = 20 * self.obs[57+7]
-        #     self.miss_action = 0
-        # if self._check_done() and not bool(self.state.battle_won):      # 일찍끝날수록 큰 패널티
-        #     reward -= self.end_funct()
-
-        # if self._check_done() and bool(self.state.battle_won):
-        #     reward += 1 # 이겼을때 + 1
+        if self.obs_pre[57+2] < self.obs[57+2]:           # 럭 증가하면 +
+            diff = self.obs[57+2] - self.obs_pre[57+2]
+            reward += 0.005 * diff   # 행운 보상 감소
+        #     # reward += self.luck_funct(self.obs[57+6]/5) * diff
+        # # if self.obs_pre[57+6] < self.obs[57+6]:          # 오래 버틸수록 + -> start_test에서
+        # #     reward = 0.00001
+        # # if self.obs[57+7] < 0:
+        # #     reward = 20 * self.obs[57+7]
+        # #     self.miss_action = 0
+        # if self._check_done() and (self.obs[57+6] < 530 ):      # 일찍끝날수록 큰 패널티
+        #     reward -= self.end_funct() / 70
+        #
+        # if self._check_done() and (self.obs[57+6] >= 530 ):
+        #     reward += 100 # 이겼을때 + 1
         #     self.episode_wins += 0.5
 
-        reward += self.obs[57+6] * 0.1
+        # reward += self.obs[57+6] * 0.01
+
+        # if self._check_done() and (self.obs[56+6] < 530):
+        #     reward -= 1.1
+        print('reward', reward)
         return reward
 
 

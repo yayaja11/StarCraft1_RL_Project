@@ -3,6 +3,8 @@ import gym
 import time
 import bunker_map as bm
 import torchcraft as tc
+import torchcraft_py
+
 import torchcraft.Constants as tcc
 import numpy as np
 bunker_units = [125, 0, 1, 32]
@@ -34,7 +36,7 @@ class StarCraftEnv(gym.Env):
         self.halt_count = 0
         self.remain_ore = 100
         self.now_ore = 0
-        self.breaked = False
+        self.unbuild_count = 0
 
     def __del__(self):
         self.client.close()
@@ -64,10 +66,9 @@ class StarCraftEnv(gym.Env):
         return True
 
     def halt(self):
-        print('fung')
-        self.unbuild_count = 0
         # self.halt_count= 0
-        self.fung = 1
+        # self.fung = 1
+        self.unbuild_count = 0
         self.hydra_switch = 1
         self.next_action = ['halt']  # 명령이 이미 가 있어서 파괴명령을 내려도 이전 명령을 먼저 수행하기 때문에 버그 막진못함
         # 그냥 완성이 확인되고 다음 명령을 보내느것이 맞을듯 일정 시간지나도 완성이안되면 부수고
@@ -75,43 +76,30 @@ class StarCraftEnv(gym.Env):
         # self.client.send(whattosend_halt)
 
         count = 0
+        print('pre-fung')
+        while 1:
+            print('fung loop')
+            self.client.send(whattosend_halt)
+            self.state = self.client.recv()
+            self.done = self._check_done()
 
-        while self.breaked == False:
-            count += 1
-            if count >= 1:  # 몇 프레임마다 명령 보낼지
-                self.client.send(whattosend_halt)
-                self.state = self.client.recv()
-                self.done = self._check_done()
-                count = 0
-                temp = self.is_done()
+            if self.done is True:
+                self.obs = self._make_observation()
+                reward = self._compute_reward()
+                info = self._get_info()
+                self.obs_pre = self.obs
+                return self.obs, reward, self.done, info
 
-                if temp[2] == True:
-                    return temp
-
-            temp = self.empty_commands()
-            if temp[2] == True:
-                return temp
-
-            if self.now_ore + 75 == self.state.frame.resources[0].ore:
-                self.breaked = True
-
-        if self.breaked == True:
-            self.breaked = False
-
-
-        temp = self.is_done()
-        if temp[2] == True:
-            return temp
-        else:
-            pass
-
+            if (self.now_ore + 75 == self.state.frame.resources[0].ore) or (self.now_ore + 750 == self.state.frame.resources[0].ore) or (self.now_ore + 675 == self.state.frame.resources[0].ore):
+                print('@@fung@@')
+                break
 
     def check_bunker_build(self, action):   # 지금은 영웅벙커만인데 노멀벙커에도 적용해야함 그 이후에는 지은 벙커들을 기억할때 판단용도로도
         # 몇몇 영웅벙커에 쓰이는 건물들은 인식을 못함. 다른 인식 방법 찾을필요
         # 벙커짓는 도중에 스테이지가 시작해서 버그가걸리는걸 고쳐보려했으나, 조건이 항상 일치하지 않음. 왠만해선 i.being_constructed는 False,  i.constructing는 True라고 뜨는데
         # 가끔 건너뛰는 상황발생. 학습해서 그런상황을 안만들게 하는방법 + 다른 조건을 찾는 방법
         # 멈췄을때 16인 이유 -> 16프레임밖에 안짓고 못지어서.. 그러면 얼마나 지었는지로 판단하는건 불가능
-        print('check', self.server_port, self.state.frame_from_bwapi)
+        # print('check', self.server_port, self.state.frame_from_bwapi)
         for i in self.state.frame.units[0]:
             if i.type == tcc.unittypes.Terran_Supply_Depot:
                 # if self.on == 1:
@@ -159,7 +147,9 @@ class StarCraftEnv(gym.Env):
         return False
 
     def is_done(self):     # 흐른 시간 측정
+
         self.now_ore = self.state.frame.resources[0].ore
+
         for i in self.state.frame.units[0]:
             if i.type == tcc.unittypes.Terran_Supply_Depot:
                 if self.last_x == i.x and self.last_y == i.y:
@@ -168,36 +158,8 @@ class StarCraftEnv(gym.Env):
                     self.unbuild_count = 0
                 self.last_x = i.x
                 self.last_y = i.y
-                if self.unbuild_count >= 50:
+                if self.unbuild_count >= 52: # halt 시간 재는 곳
                     self.halt()
-
-
-        # for i in self.state.frame.units[0]:
-        #     if i.type == tcc.unittypes.Terran_Supply_Depot:
-        #         # print(f'env id:{self.server_port}, time: {self.state.frame_from_bwapi}, every units: {i.type}')
-        #         if i.constructing == True:  # 건설중인 건물인가
-        #             self.unbuild_count += 1
-        #             print('is done', self.server_port, self.unbuild_count, self.state.frame_from_bwapi)
-        #             if self.unbuild_count >= 19:
-        #                 print('checking', self.server_port, self.unbuild_count)
-        #                 self.halt()
-
-
-        # if self.unbuild_count >= 100:
-        #     self.next_action = ['halt'] # 명령이 이미 가 있어서 파괴명령을 내려도 이전 명령을 먼저 수행하기 때문에 버그 막진못함
-        #     # 기존 명령을 없애는 방법을 찾거나 다음 명령을 보내기전에 건물이 완성되었음을 확인하고 보내기
-        #     # 16프레임뒤에 constructing True -> False
-        #     whattosend = self._make_commands(self.next_action, self.u)
-        #     self.client.send(whattosend)
-        #     self.state = self.client.recv()
-        #     self.done = self._check_done()
-        #     temp = self.is_done()
-        #     if temp[2] == True:
-        #         return temp
-        #     self.unbuild_count = 0
-        #     self.fung = 1
-        #     self.hydra_switch = 1
-
 
         self.post_action = self.action
         if self.done is True:
@@ -215,6 +177,9 @@ class StarCraftEnv(gym.Env):
         self.state = self.client.recv()
         self.done = self._check_done()
 
+
+        # print('e', self.now_ore, self.state.frame.resources[0].ore)
+
         self.now_ore = self.state.frame.resources[0].ore
 
         for i in self.state.frame.units[0]:
@@ -229,7 +194,7 @@ class StarCraftEnv(gym.Env):
                 # if self.halt_count >= 16:
                 #     self.halt_count = 0
 
-                if self.unbuild_count >= 50:
+                if self.unbuild_count >= 52:
                     self.halt()
 
 
@@ -238,7 +203,7 @@ class StarCraftEnv(gym.Env):
             reward = self._compute_reward()
             info = self._get_info()
             self.obs_pre = self.obs
-            print('is done in empty commands:', self.done)
+            # print('is done in empty commands:', self.done)
 
             return self.obs, reward, self.done, info
         else:
@@ -257,7 +222,7 @@ class StarCraftEnv(gym.Env):
             reward = self._compute_reward()
             info = self._get_info()
             self.obs_pre = self.obs
-            print('is done in empty commands:', self.done)
+            # print('is done in empty commands:', self.done)
 
             return self.obs, reward, self.done, info
         else:
@@ -468,7 +433,7 @@ class StarCraftEnv(gym.Env):
         reward = self._compute_reward()
         info = self._get_info()
         self.obs_pre = self.obs
-        print('is done:', self.done)
+        # print('is done:', self.done)
 
         return self.obs, reward, self.done, info
 
@@ -523,7 +488,6 @@ class StarCraftEnv(gym.Env):
         self.halt_count = 0
         self.remain_ore = 100
         self.now_ore = 0
-        self.breaked = False
         self.last_x = 0
         self.last_y = 0
 

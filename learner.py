@@ -5,7 +5,8 @@ import argparse
 from io import BytesIO
 # from core.algorithm.DQN import Dueling_DQN, DQN
 # from core.common.replaybuffer import ReplayBuffer, PrioritizedReplayBuffer
-from keras.optimizers import Adam
+import tensorflow
+from keras.optimizers import Adam, RMSprop
 import tensorflow as tf
 import numpy as np
 from collections import deque
@@ -27,7 +28,7 @@ class Memory(object):
 
         transition = (state, action, reward, next_state, done)
 
-        if self.count < self.capacity:
+        if self.count < self.capacity - 10:
             self.data.append(transition)
             self.count += 1
         else:
@@ -50,17 +51,45 @@ class Memory(object):
         self.data = deque(maxlen=self.capacity)
         self.count = 0
 
+dqn_opt = Adam(0.0001)
+#dqn_opt = RMSprop(0.001)   # learning rate
+
+
+def huber_loss(error, delta=1.0):
+    return tf.where(tf.abs(error) < delta, 0.5 * tf.square(error), delta * (tf.abs(error) - 0.5 * delta))
+
+def dqn_learn_huber(network, action_size, states, actions, td_targets):
+    with tf.GradientTape() as tape:
+        one_hot_actions = tf.one_hot(actions, action_size)
+        q = network(states, training=True)
+        q_values = tf.reduce_sum(one_hot_actions * q, axis=1, keepdims=True)
+        q_values = tf.cast(q_values, tf.float64)
+        td_targets = tf.cast(td_targets, tf.float64)
+        temp_loss = q_values - td_targets
+        # Huber loss
+        loss = tf.reduce_mean(huber_loss(temp_loss))
+
+    print('loss', loss)
+    grads = tape.gradient(loss, network.trainable_variables)
+    dqn_opt.apply_gradients(zip(grads, network.trainable_variables))
+
 
 def dqn_learn(network, action_size, states, actions, td_targets):
     with tf.GradientTape() as tape:
         one_hot_actions = tf.one_hot(actions, action_size)
         q = network(states, training=True)
         q_values = tf.reduce_sum(one_hot_actions * q, axis=1, keepdims=True)
-        loss = tf.reduce_mean(tf.square(q_values-td_targets))
+        q_values = tf.cast(q_values, tf.float64)
+        td_targets = tf.cast(td_targets, tf.float64)
+        temp_loss = q_values - td_targets
+        loss = tf.reduce_mean(tf.square(temp_loss))
 
+    print('loss', loss)
     grads = tape.gradient(loss, network.trainable_variables)
-    dqn_opt = Adam(0.001)   # learning rate
     dqn_opt.apply_gradients(zip(grads, network.trainable_variables))
+    # dqn_opt.apply_gradients(zip(grads, network.trainable_variables))
+
+
 
 def td_target(action_size, rewards, target_qs, max_a, dones, double):
     if double == True:
@@ -74,20 +103,20 @@ def td_target(action_size, rewards, target_qs, max_a, dones, double):
         if dones[i]:
             y_k[i] = rewards[i]
         else:
-            y_k[i] = rewards[i] + 0.95 * max_q[i] # gamma
+            y_k[i] = rewards[i] + 0.99 * max_q[i] # gamma
     return y_k
 
 def update_target_network(TAU, network, target_network):
     phi = network.get_weights()
     target_phi = target_network.get_weights()
-    for i in range(len(phi)):
+    for i in range(len(target_phi)):
         target_phi[i] = TAU * phi[i] + (1 - TAU) * target_phi[i]
     target_network.set_weights(target_phi)
 
 def learner(q, param_q, double, dueling, batch_size):
     action_size = len(bm.STATE_BUNKER)
-    memory = Memory(60000)
-    state_dim = 58 + 9
+    memory = Memory(50000)
+    state_dim = 58 + 7
     if dueling == True:
         network = dqn.Dueling_DQN(action_size)
         target_network = dqn.Dueling_DQN(action_size)
@@ -98,43 +127,48 @@ def learner(q, param_q, double, dueling, batch_size):
 
     network.build(input_shape=(None, state_dim))
     target_network.build(input_shape=(None, state_dim))
+    update_target_network(1.0, network, target_network)
     done = False
+    count = 0
     while True:
-        if not q.empty():
+        while not q.empty():
             temp = q.get()
-            q.put(temp)
-            if temp[4] == True:
-                while not q.empty():
-                    temp = q.get()
-                    state = temp[0]
-                    action = temp[1]
-                    reward = temp[2]
-                    next_state = temp[3]
-                    done = temp[4]
-                    memory.add_buffer(state, action, reward, next_state, done)
+            state = temp[0]
+            action = temp[1]
+            reward = temp[2]
+            next_state = temp[3]
+            done = temp[4]
+            memory.add_buffer(state, action, reward, next_state, done)
 
-                if memory.count > 4000: # memory buffer count랑 count랑 다른가? 아무튼 여기 진입못하는듯
-                    states, actions, rewards, next_states, dones = memory.sample_batch((batch_size))
+        max_a = 0
+        if memory.count > 0: # memory buffer count랑 count랑 다른가? 아무튼 여기 진입못하는듯
+            # print('@@',memory.count)
 
-                    if double is True:
-                        curr_net_qs = network(tf.convert_to_tensor(next_states, dtype=tf.float32))  # double에서 행동 뽑는 theta
-                        max_a = np.argmax(curr_net_qs.numpy(), axis=1)
 
-                    target_qs = target_network(tf.convert_to_tensor(next_states, dtype=tf.float32))  # target_qs는 next_state만 담은 것
-                    y_i = td_target(action_size, rewards, target_qs.numpy(), max_a, dones, double)
+            states, actions, rewards, next_states, dones = memory.sample_batch((batch_size))
 
-                    dqn_learn(network, action_size, tf.convert_to_tensor(states, dtype=tf.float32), actions,
-                                   tf.convert_to_tensor(y_i, dtype=tf.float32))
-                    update_target_network(0.001, network, target_network) # TAU
+            if double is True:
+                curr_net_qs = network(tf.convert_to_tensor(next_states, dtype=tf.float32))
+                max_a = np.argmax(curr_net_qs.numpy(), axis=1)
 
-                    # 만약 뺏을 때 actor가 마침 param_q에서 빼고 다시 넣는중일 수 있음 그때를 방지하기 위함
-                    print('@@@param_q_size:',param_q.qsize())
-                    if not param_q.empty():
-                        try:
-                            garbege = param_q.get()
-                        except:
-                            pass
+            target_qs = target_network(tf.convert_to_tensor(next_states, dtype=tf.float32))  # double에서 행동 뽑는 theta
+                # max_a = np.argmax(target_qs.numpy(), axis=1)
 
-                    param_q.put([network.get_weights(), target_network.get_weights()]) # main, target
-        else:
-            time.sleep(1)
+            y_i = td_target(action_size, rewards, target_qs.numpy(), max_a, dones, double)
+            dqn_learn(network, action_size, tf.convert_to_tensor(states, dtype=tf.float32), actions,
+                      tf.convert_to_tensor(y_i, dtype=tf.float64))
+            # if count % 3 == 0:
+            update_target_network(0.001, network, target_network)  # TAU
+            while not param_q.empty():
+                param_q.get()
+            # if not param_q.empty():
+                # print('@@@@@@@@@@@',param_q.size())
+                # try:
+                #     print('@@@@@@@@@@@', param_q.size())
+                #
+                #     garbege = param_q.get()
+                # except:
+                #     pass
+            param_q.put([network.get_weights(), target_network.get_weights()]) # main, target
+            count += 1
+            time.sleep(2)

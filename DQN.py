@@ -19,7 +19,6 @@ class DQN(Model):
         x = self.h0(x)
         x = self.h1(x)
         x = self.h2(x)
-        x = self.h3(x)
 
         q = self.q(x)
         return q
